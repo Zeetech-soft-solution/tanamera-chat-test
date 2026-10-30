@@ -127,13 +127,24 @@ async function whoAmI() {
   return me;
 }
 
-export async function askNoviz(prompt, previousTurnId) {
+// A readable label for each ERPNext call, for the chat's steps list.
+function stepLabel(spec) {
+  const what = spec.doctype || spec.reportName || "";
+  return { get_list: `Read ${what} list`, get_doc: `Open ${what} ${spec.name || ""}`.trim(), create_doc: `Create ${what}`, update_doc: `Update ${what} ${spec.name || ""}`.trim(), run_report: `Run report ${what}` }[spec.kind] || `${spec.kind} ${what}`.trim();
+}
+
+// onStep (optional) is called after each ERPNext call with
+// { label, ok, ms } so the chat can show live progress.
+export async function askNoviz(prompt, previousTurnId, onStep) {
+  const started = Date.now();
   const { user, roles } = await whoAmI();
   let step = await relay("/v1/agent/turn", { prompt, erp_user: user, erp_roles: roles, ...(previousTurnId ? { previous_turn_id: previousTurnId } : {}) });
   while (step.status === "fetch") {
-    let result;
-    try { result = await runCall(step.request); } catch (e) { result = { error: e.message }; }
+    const t0 = Date.now();
+    let result, ok = true;
+    try { result = await runCall(step.request); } catch (e) { result = { error: e.message }; ok = false; }
+    onStep?.({ label: stepLabel(step.request), ok, ms: Date.now() - t0 });
     step = await relay("/v1/agent/turn/continue", { turnId: step.turnId, result });
   }
-  return { reply: step.reply, html: step.html, turnId: step.turnId };
+  return { reply: step.reply, html: step.html, turnId: step.turnId, ms: Date.now() - started };
 }

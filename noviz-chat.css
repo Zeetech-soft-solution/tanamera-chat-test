@@ -1,0 +1,236 @@
+/*
+ * Noviz AI chat: the one stylesheet for every Noviz chat surface (ERPNext,
+ * Business Central, Odoo, QuickBooks). Each client ships an identical copy
+ * of this file; the apps' tests compare their copy with this one.
+ *
+ * Everything is scoped under .nz-root and sets its own font, colours and
+ * spacing, so the host page (Frappe, Odoo, BC, a plain page) cannot change
+ * how a reply looks. The relay's rendered results (tables, cards, charts,
+ * next steps) use the erp-agent-* classes from @noviz/core's renderers.
+ */
+.nz-root {
+  --nz-ink: #1f2933;
+  --nz-ink-2: #52606d;
+  --nz-muted: #7b8794;
+  --nz-line: #e4e7eb;
+  --nz-line-strong: #cbd2d9;
+  --nz-surface: #ffffff;
+  --nz-soft: #f5f7f9;
+  --nz-brand: #1e7a5c;
+  --nz-brand-hover: #17634a;
+  --nz-brand-soft: #e8f4ef;
+  --nz-accent: #4fbb9c;
+  --nz-danger: #b42318;
+  --nz-danger-soft: #fef3f2;
+  --nz-highlight: #fff8e1;
+  --nz-radius: 12px;
+  --nz-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+
+  display: flex; flex-direction: column; height: 100%; box-sizing: border-box;
+  padding: 12px 16px 14px;
+  font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px; line-height: 1.55; color: var(--nz-ink); background: var(--nz-surface);
+  -webkit-font-smoothing: antialiased;
+}
+.nz-root *, .nz-root *::before, .nz-root *::after { box-sizing: border-box; }
+.nz-root button { font-family: inherit; }
+/* The hidden attribute always wins over the display rules below. */
+.nz-root [hidden] { display: none !important; }
+
+/* ---------- Header ---------- */
+.nz-header {
+  display: flex; align-items: center; gap: 12px; padding: 2px 0 12px;
+  border-bottom: 1px solid var(--nz-line); margin-bottom: 14px;
+}
+.nz-logo {
+  flex-shrink: 0; width: 34px; height: 34px; padding: 6px; border-radius: 10px;
+  color: var(--nz-brand); background: var(--nz-brand-soft);
+}
+.nz-header-text { flex: 1; min-width: 0; }
+.nz-title { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -0.01em; line-height: 1.3; }
+.nz-subtitle { font-size: 12.5px; color: var(--nz-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nz-header-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.nz-new {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--nz-line-strong); background: var(--nz-surface); color: var(--nz-ink);
+  border-radius: 8px; padding: 6px 12px; font-size: 12.5px; font-weight: 500; line-height: 1.3;
+  cursor: pointer; text-decoration: none; transition: background 0.15s ease, border-color 0.15s ease;
+}
+.nz-new:hover { background: var(--nz-soft); border-color: var(--nz-muted); }
+.nz-new:disabled { opacity: 0.5; cursor: default; }
+
+/* ---------- Messages: the question and the answer on the same side ---------- */
+.nz-list { flex: 1; overflow-y: auto; padding: 2px 4px 8px 0; scroll-behavior: smooth; }
+.nz-msg {
+  max-width: 920px; margin: 0 0 14px; padding: 12px 16px; border-radius: var(--nz-radius);
+  overflow-wrap: anywhere;
+}
+.nz-msg p { margin: 2px 0 6px; }
+.nz-msg p:last-child { margin-bottom: 0; }
+.nz-msg ul { margin: 4px 0 6px; padding-left: 20px; }
+.nz-msg li { margin: 2px 0; }
+.nz-msg strong { font-weight: 650; }
+.nz-msg code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; background: var(--nz-soft); padding: 1px 5px; border-radius: 4px; }
+.nz-user { background: var(--nz-soft); font-weight: 600; white-space: pre-wrap; }
+.nz-agent { background: var(--nz-surface); border: 1px solid var(--nz-line); box-shadow: var(--nz-shadow); }
+.nz-error { border-color: #fecdca; background: var(--nz-danger-soft); color: var(--nz-danger); }
+
+/* Staged "thinking" indicator. */
+.nz-thinking { display: inline-flex; align-items: center; gap: 9px; color: var(--nz-muted); }
+.nz-thinking-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--nz-accent); flex-shrink: 0;
+  animation: nz-pulse 1s ease-in-out infinite;
+}
+.nz-thinking-label { transition: opacity 0.2s ease; }
+@keyframes nz-pulse { 0%, 100% { opacity: 0.25; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1); } }
+
+/* ---------- Relay results: report wrapper and empty state ---------- */
+.nz-root .erp-agent-report { margin-top: 12px; }
+.nz-root .erp-agent-empty { color: var(--nz-muted); font-style: italic; padding: 6px 0; }
+.nz-root .erp-agent-raw {
+  margin: 10px 0 0; padding: 10px 12px; background: var(--nz-soft); border-radius: 8px;
+  font: 12px/1.5 ui-monospace, "Cascadia Code", Consolas, monospace; overflow-x: auto;
+}
+
+/* Tables. */
+.nz-root .erp-agent-table-scroll {
+  overflow-x: auto; border: 1px solid var(--nz-line); border-radius: 10px; background: var(--nz-surface);
+}
+.nz-root .erp-agent-table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; }
+.nz-root .erp-agent-table th,
+.nz-root .erp-agent-table td {
+  padding: 8px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--nz-line);
+}
+.nz-root .erp-agent-table th {
+  position: sticky; top: 0; background: var(--nz-soft); color: var(--nz-ink-2);
+  font-size: 11.5px; font-weight: 650; letter-spacing: 0.03em; text-transform: uppercase;
+}
+.nz-root .erp-agent-table tbody tr:last-child td { border-bottom: none; }
+.nz-root .erp-agent-table tbody tr:nth-child(even) td { background: #fafbfc; }
+.nz-root .erp-agent-table tbody tr:hover td { background: var(--nz-brand-soft); }
+.nz-root .erp-agent-row-highlight td { background: var(--nz-highlight) !important; }
+.nz-root .erp-agent-row-id-link {
+  background: none; border: none; padding: 0; color: var(--nz-brand); font: inherit; font-weight: 600;
+  text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+}
+.nz-root .erp-agent-row-id-link:hover { color: var(--nz-brand-hover); }
+
+/* Single-record cards. */
+.nz-root .erp-agent-card {
+  border: 1px solid var(--nz-line); border-radius: var(--nz-radius); background: var(--nz-surface);
+  box-shadow: var(--nz-shadow); overflow: hidden;
+}
+.nz-root .erp-agent-card + .erp-agent-card { margin-top: 10px; }
+.nz-root .erp-agent-card-row { display: flex; gap: 16px; padding: 9px 16px; border-top: 1px solid var(--nz-line); }
+.nz-root .erp-agent-card-row:first-child { border-top: none; }
+.nz-root .erp-agent-card-row:nth-child(even) { background: #fafbfc; }
+.nz-root .erp-agent-card-label {
+  flex: 0 0 170px; color: var(--nz-muted); font-size: 11.5px; font-weight: 650;
+  letter-spacing: 0.03em; text-transform: uppercase; padding-top: 2px;
+}
+.nz-root .erp-agent-card-value { flex: 1; font-size: 13.5px; word-break: break-word; }
+
+/* Line items inside a card. */
+.nz-root .erp-agent-card-row:has(.erp-agent-lines) { flex-direction: column; gap: 6px; background: var(--nz-surface); }
+.nz-root .erp-agent-card-row:has(.erp-agent-lines) .erp-agent-card-label { flex: 0 0 auto; }
+.nz-root .erp-agent-lines { margin-top: 2px; }
+.nz-root .erp-agent-lines .erp-agent-table th { position: static; }
+
+/* Charts (the spec charts carry their own inline colours; this is the frame). */
+.nz-root .erp-agent-chart {
+  border: 1px solid var(--nz-line); border-radius: var(--nz-radius); padding: 14px 16px;
+  background: var(--nz-surface); display: flex; flex-direction: column; gap: 8px;
+}
+.nz-root .erp-agent-chart ~ .erp-agent-chart { margin-top: 12px; }
+.nz-root .erp-agent-chart-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.nz-root .erp-agent-chart-label {
+  flex: 0 0 150px; color: var(--nz-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.nz-root .erp-agent-chart-track { flex: 1; min-width: 40px; height: 16px; border-radius: 4px; background: var(--nz-soft); overflow: hidden; }
+.nz-root .erp-agent-chart-bar { height: 100%; min-width: 4px; border-radius: 4px; background: var(--nz-brand); }
+.nz-root .erp-agent-chart-value { flex: 0 0 auto; min-width: 36px; text-align: right; font-weight: 650; font-variant-numeric: tabular-nums; }
+
+/* Next steps and confirm buttons under a result. */
+.nz-root .erp-agent-next-steps { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+.nz-root button.erp-agent-next-step:not(.erp-agent-row-id-link) {
+  background: var(--nz-surface); border: 1px solid var(--nz-line-strong); color: var(--nz-ink);
+  border-radius: 999px; padding: 6px 14px; font-size: 12.5px; font-weight: 500; cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.nz-root button.erp-agent-next-step:not(.erp-agent-row-id-link):hover {
+  background: var(--nz-brand-soft); border-color: var(--nz-brand); color: var(--nz-brand);
+}
+.nz-root .erp-agent-notices { margin-top: 10px; }
+
+/* Per-answer actions (Export PDF, Open in the ERP, document download). */
+.nz-export {
+  display: inline-flex; align-items: center; margin: 12px 8px 0 0; padding: 6px 12px;
+  background: var(--nz-surface); border: 1px solid var(--nz-line-strong); border-radius: 8px;
+  color: var(--nz-brand); font: inherit; font-size: 12.5px; font-weight: 600; text-decoration: none; cursor: pointer;
+}
+.nz-export:hover { background: var(--nz-brand-soft); border-color: var(--nz-brand); }
+.nz-doc-download { background: var(--nz-brand); border-color: var(--nz-brand); color: #fff; }
+.nz-doc-download:hover { background: var(--nz-brand-hover); }
+/* Links an add-in cannot open (another ERP's download address) are not shown. */
+.nz-msg a[download] { display: none; }
+
+/* ---------- Composer: one rounded bar, ＋ menu, round send (ChatGPT style) ---------- */
+.nz-composer {
+  position: relative; display: flex; align-items: flex-end; gap: 6px; margin-top: 12px;
+  padding: 6px 6px 6px 8px; border: 1px solid var(--nz-line-strong); border-radius: 24px;
+  background: var(--nz-surface); box-shadow: var(--nz-shadow);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.nz-composer:focus-within { border-color: var(--nz-brand); box-shadow: 0 0 0 3px rgba(30, 122, 92, 0.12); }
+.nz-input {
+  flex: 1; min-width: 0; resize: none; min-height: 36px; max-height: 160px; border: none; background: transparent;
+  padding: 8px 4px; font: inherit; line-height: 1.4; color: var(--nz-ink);
+}
+.nz-input::placeholder { color: var(--nz-muted); }
+.nz-input:focus { outline: none; }
+.nz-plus, .nz-send {
+  flex-shrink: 0; width: 36px; height: 36px; border: none; border-radius: 50%; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  font: inherit; transition: background 0.15s ease;
+}
+.nz-plus { background: transparent; color: var(--nz-ink); font-size: 24px; line-height: 1; }
+.nz-plus:hover, .nz-plus[aria-expanded="true"] { background: var(--nz-brand-soft); }
+.nz-send { background: var(--nz-brand); color: #fff; font-size: 18px; font-weight: 700; }
+.nz-send:hover { background: var(--nz-brand-hover); }
+.nz-plus:disabled, .nz-send:disabled { opacity: 0.5; cursor: default; }
+/* The ＋ menu opens above the bar. */
+.nz-menu {
+  position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 20; min-width: 220px; padding: 6px;
+  background: var(--nz-surface); border: 1px solid var(--nz-line); border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.12);
+}
+.nz-menu[hidden] { display: none; }
+.nz-menu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 12px;
+  border: none; border-radius: 10px; background: none; font: inherit; color: var(--nz-ink);
+  text-align: left; cursor: pointer;
+}
+.nz-menu-item:hover, .nz-menu-item:focus-visible { background: var(--nz-brand-soft); outline: none; }
+.nz-menu-icon { width: 22px; text-align: center; }
+
+/* ---------- Small screens ---------- */
+@media (max-width: 640px) {
+  .nz-root { padding: 10px 12px 12px; }
+  .nz-header { flex-wrap: wrap; }
+  .nz-msg { padding: 10px 12px; }
+  .nz-root .erp-agent-card-row { flex-direction: column; gap: 2px; }
+  .nz-root .erp-agent-card-label { flex-basis: auto; }
+  .nz-root .erp-agent-chart-label { flex-basis: 96px; }
+  /* Thumb-size targets on phones. */
+  .nz-plus, .nz-send { width: 44px; height: 44px; }
+  .nz-menu { right: 0; min-width: 0; }
+}
+
+/* ---------- Export PDF prints only the chosen answer ---------- */
+@media print {
+  body * { visibility: hidden; }
+  .nz-print-this, .nz-print-this * { visibility: visible; }
+  .nz-print-this { position: absolute; top: 0; left: 0; width: 100%; max-width: none; box-shadow: none; border: none; }
+  .nz-print-this .nz-export, .nz-print-this .erp-agent-next-steps { display: none; }
+  .nz-list { overflow: visible; }
+}
