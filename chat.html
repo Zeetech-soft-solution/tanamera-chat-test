@@ -37,6 +37,7 @@
     --bg:#1b1b1b; --panel:#2a2a2a; --panel-2:#232323; --line:#333; --text:#e8e8e8; --muted:#9a9a9a;
     --user:#2f5be8; --accent:#f0625d; --head:#3a2c2c; --ok:#cfcfcf;
     --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    color-scheme: dark; /* dark scrollbars and form controls */
   }
   * { box-sizing:border-box; }
   html, body { height:100%; }
@@ -78,9 +79,33 @@
   .bubble-ai th, .bubble-ai td { padding:9px 10px; border-bottom:1px solid var(--line); }
   .bubble-ai code { font-family:var(--mono); background:#1f1f1f; padding:1px 4px; border-radius:4px; }
   .err { color:#f08a8a; }
-  /* Noviz AI's rendered result: shown exactly as in Noviz AI's own apps,
-     as a card inside the message. Only the layout of .nz-root is reset here. */
-  .nz-root.nz-result { display:block; height:auto; margin-top:10px; padding:12px 14px; border-radius:10px; overflow-x:auto; }
+  /* Noviz AI's rendered result in this chat's dark theme: noviz-chat.css is
+     unchanged; only its colour variables are set here. Change these to
+     restyle tables, cards and charts. */
+  .nz-root.nz-result {
+    --nz-ink:var(--text); --nz-ink-2:#c4c4c4; --nz-muted:var(--muted);
+    --nz-line:var(--line); --nz-line-strong:#4a4a4a; --nz-surface:var(--panel); --nz-soft:var(--head);
+    --nz-brand:#ff8a85; --nz-brand-hover:#ffa9a5; --nz-brand-soft:#3a2c2c; --nz-highlight:#4a4026;
+    --nz-shadow:none; --ink:var(--text); --ink-secondary:#c4c4c4;
+    display:block; height:auto; margin-top:10px; padding:0; background:transparent; color:var(--text); overflow-x:auto;
+  }
+  /* Tables and cards in the chat's own table style: tinted header row,
+     normal-case bold headings, thin row lines, no stripes, no outer frame. */
+  .nz-root.nz-result .erp-agent-table-scroll,
+  .nz-root.nz-result .erp-agent-card { border:0; border-radius:0; background:transparent; }
+  .nz-root.nz-result .erp-agent-table { font-size:13px; }
+  .nz-root.nz-result .erp-agent-table th {
+    background:var(--head); color:var(--text); text-transform:none; letter-spacing:0; font-size:13px; font-weight:600; padding:11px 12px;
+  }
+  .nz-root.nz-result .erp-agent-table td { padding:11px 12px; border-bottom:1px solid var(--line); }
+  .nz-root.nz-result .erp-agent-table tbody tr:last-child td { border-bottom:1px solid var(--line); }
+  .nz-root.nz-result .erp-agent-table tbody tr:nth-child(even) td,
+  .nz-root.nz-result .erp-agent-card-row:nth-child(even) { background:transparent; }
+  .nz-root.nz-result .erp-agent-table tbody tr:hover td { background:#2f2f2f; }
+  .nz-root.nz-result .erp-agent-card-row { padding:11px 12px; border-top:0; border-bottom:1px solid var(--line); }
+  .nz-root.nz-result .erp-agent-card-label { color:var(--muted); text-transform:none; letter-spacing:0; font-size:13px; font-weight:400; }
+  .nz-root.nz-result .erp-agent-card-value { font-size:13px; }
+  .nz-root.nz-result a { color:var(--nz-brand); }
 
   form { max-width:720px; width:calc(100% - 32px); margin:0 auto 16px; background:var(--panel-2); border:1px solid var(--line); border-radius:16px; padding:10px 12px; }
   #msg { width:100%; background:none; border:0; outline:0; color:var(--text); font:inherit; resize:none; height:44px; }
@@ -150,6 +175,12 @@
     return out;
   }
 
+  // Charts carry a few fixed light-theme colours inline (text, track,
+  // donut hole, borders). Map them to the dark theme; remove this function
+  // for a light chat.
+  const CHART_COLOURS = { "#1B1E1C": "#e8e8e8", "#6B7268": "#c4c4c4", "#9BA098": "#9a9a9a", "#F5F6F3": "#3a3a3a", "#FFFFFF": "#2a2a2a", "#E3E4DF": "#333333" };
+  const darkCharts = (html) => html.replace(/#1B1E1C|#6B7268|#9BA098|#F5F6F3|#FFFFFF|#E3E4DF/gi, (c) => CHART_COLOURS[c.toUpperCase()]);
+
   function scroll() { $("log").scrollTop = $("log").scrollHeight; }
 
   function addUser(text) {
@@ -185,7 +216,7 @@
         row.querySelector(".worked").textContent = `Worked ${secs(a.ms)}`;
         if (!count) row.querySelector(".steps").remove();
         // Noviz AI's rendered html (tables, cards, charts) goes inside .nz-root.
-        row.querySelector(".body").innerHTML = md(a.reply) + (a.html ? `<div class="nz-root nz-result">${a.html}</div>` : "");
+        row.querySelector(".body").innerHTML = md(a.reply) + (a.html ? `<div class="nz-root nz-result">${darkCharts(a.html)}</div>` : "");
         // Links in the html (PDF downloads) are ERPNext paths ("/api/method/...").
         // Point them at your ERPNext, or hide them when ERP_LINK_BASE is empty.
         row.querySelectorAll('.nz-result a[href^="/"]').forEach((link) => {
