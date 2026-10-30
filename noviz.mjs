@@ -48,8 +48,23 @@
 const NOVIZ_RELAY_URL = "https://noviz.in/platform-api";
 const NOVIZ_TENANT_KEY = ""; // Noviz AI tenant key (tnt_...), one per company
 const ERP_URL = ""; // e.g. https://your-erpnext.example.com
-const ERP_API_KEY = ""; // ERPNext User > Settings > API Access > Generate Keys
-const ERP_API_SECRET = ""; // shown once when generated; ERPNext stores it encrypted
+
+// ERPNext user the chat runs as: ERPNext applies this user's roles and
+// permissions to every answer. Keep ONE block active, comment the others.
+// Each user's key: ERPNext > User > Settings tab > API Access > Generate Keys
+// (the secret is shown once; ERPNext stores it encrypted).
+
+// User 1: integration user, e.g. noviz@your-company.com
+const ERP_API_KEY = "";
+const ERP_API_SECRET = "";
+
+// User 2: e.g. a sales user (sees only what Sales roles allow)
+// const ERP_API_KEY = "";
+// const ERP_API_SECRET = "";
+
+// User 3: e.g. an accounts user (sees only what Accounts roles allow)
+// const ERP_API_KEY = "";
+// const ERP_API_SECRET = "";
 
 // ---- ERPNext REST calls (as the API key's user) ----
 
