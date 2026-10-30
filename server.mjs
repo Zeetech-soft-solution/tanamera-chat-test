@@ -19,12 +19,16 @@ if (fs.existsSync(envFile)) {
 }
 
 // ---- Settings: fill in here, or leave empty and set them in .env ----
+// For now the keys are plain variables. In production read them from your
+// own database or secrets store per logged-in user (one ERPNext key or
+// OAuth token per person) instead of hard-coding them here. Never commit
+// real values; .env is git-ignored.
 const CONFIG = {
   NOVIZ_RELAY_URL: "https://noviz.in/platform-api",
-  NOVIZ_TENANT_KEY: "",
-  ERP_URL: "",
-  ERP_API_KEY: "",
-  ERP_API_SECRET: "",
+  NOVIZ_TENANT_KEY: "", // Noviz AI tenant key (tnt_...), one per company
+  ERP_URL: "", // e.g. https://your-erpnext.example.com
+  ERP_API_KEY: "", // ERPNext User > Settings > API Access > Generate Keys
+  ERP_API_SECRET: "", // shown once when generated; ERPNext stores it encrypted
   // Login for the chat page. Required when HOST is not 127.0.0.1.
   CHAT_USER: "",
   CHAT_PASSWORD: "",
