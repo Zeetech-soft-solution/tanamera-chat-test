@@ -1,15 +1,45 @@
 // Noviz AI for ERPNext: the calling code to plug into your own chat.
 //
-//   import { askNoviz } from "./noviz.mjs";
-//   const answer = await askNoviz("how many customers do we have?");
-//   // answer.reply (markdown text), answer.html (table/chart, optional),
-//   // answer.turnId (pass back as previousTurnId to continue the conversation)
+// ---- Architecture: where this file goes ----
 //
-// How it works: the relay either answers or asks for one ERPNext call. This
-// code runs that call with the ERPNext API key and sends the result back,
-// until the relay gives the final answer. Every call runs as the user who
-// owns the key, so ERPNext applies that user's own roles and permissions.
-// Run this on your server only; never ship the keys to a browser.
+//   Your chat UI (web / mobile)
+//        |  user message                        ^ reply + html
+//        v                                      |
+//   Your chat backend  <-- put noviz.mjs here (server side only)
+//        |  askNoviz(message, turnId)
+//        |
+//        |-- 1. POST relay /v1/agent/turn ------------------> Noviz AI relay
+//        |<-------- "fetch": run one ERPNext call -----------  (the AI)
+//        |-- 2. that call -> ERPNext REST API, as the user ---> Your ERPNext
+//        |-- 3. POST relay /v1/agent/turn/continue (result) ->
+//        |        ... repeats 2-3 until ...
+//        |<-------- "final": reply text (+ table/chart html) -
+//
+// The relay never touches ERPNext itself and never holds ERPNext keys:
+// every ERPNext call runs here, as the user who owns the key, so ERPNext
+// applies that user's own roles and permissions.
+//
+// ---- How to add it to your chat ----
+//
+// 1. Copy noviz.mjs into your chat backend and fill the settings below.
+// 2. Where your backend receives a user message, call:
+//
+//      import { askNoviz } from "./noviz.mjs";
+//      const answer = await askNoviz(message, conversation.novizTurnId);
+//
+// 3. Send answer.reply (markdown) to the chat, plus answer.html if present
+//    (a ready-made table/chart; render it as HTML in the message bubble).
+// 4. Save answer.turnId on that chat conversation and pass it next time, so
+//    the AI remembers the conversation ("show the 3 latest of them").
+//    Start a new conversation by passing no turnId.
+// 5. Show a "thinking..." state while waiting: one answer can take several
+//    ERPNext calls (a few seconds up to a minute).
+// 6. On an error, show the error message; ERPNext refusals come back as the
+//    AI's own reply, not as errors.
+// 7. Writes: the AI asks the user before anything that commits (and creates
+//    drafts); the user's "yes" is just the next chat message.
+//
+// Never send the keys to the browser; only your backend calls this file.
 
 // ---- Settings ----
 // For now the keys are plain variables. In production read them from your
