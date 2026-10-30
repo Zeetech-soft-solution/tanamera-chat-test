@@ -75,6 +75,23 @@ export async function novizNextPage(user: NovizUser, tool: string, args: Record<
   return untilFinal(user, conversationId, answer);
 }
 
+/** "Download PDF" under an answer: the PDF for the answer's report spec. */
+export async function novizPdf(user: NovizUser, spec: string): Promise<Response> {
+  const response = await fetch(`${GATEWAY_URL}/v1/chat/pdf?spec=${encodeURIComponent(spec)}`, {
+    headers: {
+      Authorization: `Bearer ${TENANT_KEY}`,
+      "X-Chat-User": user.chatUser,
+      "X-ERP-Authorization": `token ${user.erpApiKey}:${user.erpApiSecret}`,
+    },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const json = await response.json().catch(() => ({}));
+    throw new NovizError(response.status, json.error?.code || "error", json.error?.message || `Noviz AI answered ${response.status}`);
+  }
+  return response;
+}
+
 /** The chat's + menu items (Approvals, Mail, ...). */
 export async function novizMenu(user: NovizUser): Promise<{ id: string; label: string; prompt?: string; empty?: string }[]> {
   return (await call(user, "/v1/chat/menu", { method: "GET" })).items || [];

@@ -16,11 +16,15 @@
  * - onAsk: a record ID or a suggested next step was clicked; send its
  *   question as the next chat message (hidden: do not show it as the user's).
  * - onNextPage: "Show me more"; POST /api/agents/red/noviz/next-page.
- * - erpBaseUrl: PDF links in results open on your ERPNext (empty hides them).
+ * - pdfRoute: your route that returns the PDF (app/api/agents/red/noviz/pdf).
+ * - erpBaseUrl: other ERPNext links in results open there (empty hides them).
  */
 import { useEffect, useMemo, useRef } from "react";
 import "./noviz-chat.css";
 import "./noviz-answer.css";
+
+// The relay's "Download PDF" link (its spec rides in the query string).
+const NOVIZ_PDF_PATH = "/api/method/noviz_ai.api.generate_report_pdf";
 
 // Charts carry a few fixed light colours; mapped to the dark style.
 const DARK: Record<string, string> = {
@@ -32,22 +36,28 @@ export function NovizAnswer(props: {
   html: string;
   onAsk: (text: string, hidden: boolean) => void;
   onNextPage: (tool: string, args: Record<string, unknown>) => void;
+  pdfRoute?: string;
   erpBaseUrl?: string;
 }) {
-  const { html, onAsk, onNextPage, erpBaseUrl = "" } = props;
+  const { html, onAsk, onNextPage, pdfRoute = "/api/agents/red/noviz/pdf", erpBaseUrl = "" } = props;
   const ref = useRef<HTMLDivElement>(null);
   const themed = useMemo(() => html.replace(/#1B1E1C|#6B7268|#9BA098|#F5F6F3|#FFFFFF|#E3E4DF/gi, (c) => DARK[c.toUpperCase()]), [html]);
 
-  // Links to ERPNext paths ("/api/method/...") open on your ERPNext, or are hidden.
+  // "Download PDF" goes to your own route (the gateway builds the PDF); other
+  // ERPNext paths ("/api/method/...") open on your ERPNext, or are hidden.
   useEffect(() => {
     ref.current?.querySelectorAll<HTMLAnchorElement>('a[href^="/"]').forEach((a) => {
-      if (erpBaseUrl) {
+      const href = a.getAttribute("href") || "";
+      if (href.startsWith(NOVIZ_PDF_PATH)) {
+        a.href = pdfRoute + href.slice(NOVIZ_PDF_PATH.length);
+        a.removeAttribute("target");
+      } else if (erpBaseUrl) {
         a.href = erpBaseUrl + a.getAttribute("href");
         a.target = "_blank";
         a.rel = "noopener";
       } else a.remove();
     });
-  }, [themed, erpBaseUrl]);
+  }, [themed, erpBaseUrl, pdfRoute]);
 
   function onClick(e: React.MouseEvent) {
     const target = e.target as HTMLElement;

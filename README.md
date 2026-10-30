@@ -12,6 +12,7 @@ Router, same request as their agent routes: `POST { message, conversationId }`).
 | `app/api/agents/red/noviz/route.ts` | Noviz AI as one of your agents: `POST { message, conversationId }` → an assistant message in your message shape, plus `html` | nothing |
 | `app/api/agents/red/noviz/next-page/route.ts` | "Show me more" under a result | nothing |
 | `app/api/agents/red/noviz/menu/route.ts` | The + menu items (Approvals, Mail) | nothing |
+| `app/api/agents/red/noviz/pdf/route.ts` | "Download PDF" under an answer (the gateway builds it from your ERPNext) | nothing |
 | `components/noviz/NovizAnswer.tsx` | Shows Noviz AI's tables, cards and charts under the message text; record IDs and next steps ask their follow-up | nothing |
 | `components/noviz/noviz-chat.css` | Noviz AI's result styles | never (same copy as every Noviz app) |
 | `components/noviz/noviz-answer.css` | Those results in your dark style | the colours, to your theme |
@@ -39,7 +40,7 @@ In your chat page, under an assistant message:
 ```
 NOVIZ_GATEWAY_URL=https://tanamera-gateway.noviz.in
 NOVIZ_TENANT_KEY=tnt_...
-NEXT_PUBLIC_ERP_BASE_URL=https://your-erpnext   # PDF links in results open there
+NEXT_PUBLIC_ERP_BASE_URL=https://your-erpnext   # other ERPNext links in results open there
 ```
 
 ## Run the test chat
