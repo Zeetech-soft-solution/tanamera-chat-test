@@ -1,0 +1,29 @@
+/* The test chat's own look (Tanamera's dark messenger style). Your chat keeps its own. */
+:root {
+  --bg: #1b1b1b; --panel: #2a2a2a; --panel-2: #232323; --line: #333; --text: #e8e8e8; --muted: #9a9a9a;
+  --user: #2f5be8; --accent: #f0625d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--text); font: 14px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.chat { height: 100%; display: flex; flex-direction: column; }
+.chat header { display: flex; align-items: center; gap: 12px; padding: 10px 20px; border-bottom: 1px solid var(--line); }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; flex: none; }
+.badge { font-size: 11px; background: #333; color: var(--muted); padding: 2px 8px; border-radius: 6px; margin-left: 8px; }
+.chat header .new { margin-left: auto; background: #f2f2f2; color: #111; border: 0; border-radius: 16px; padding: 6px 14px; font-weight: 600; }
+.log { flex: 1; overflow-y: auto; padding: 24px 16px 8px; }
+.row { max-width: 760px; margin: 0 auto 20px; display: flex; gap: 10px; }
+.row.user { justify-content: flex-end; }
+.bubble-user { background: var(--user); color: #fff; padding: 9px 14px; border-radius: 14px; max-width: 80%; white-space: pre-wrap; }
+.bubble-ai { flex: 1; min-width: 0; background: var(--panel); border-radius: 12px; padding: 12px 14px; overflow-x: auto; }
+.thinking { color: var(--muted); }
+.error { color: #f08a8a; }
+.composer { max-width: 760px; width: calc(100% - 32px); margin: 0 auto 16px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 16px; padding: 10px 12px; display: flex; gap: 8px; align-items: flex-end; position: relative; }
+.composer textarea { flex: 1; background: none; border: 0; outline: 0; color: var(--text); font: inherit; resize: none; height: 44px; }
+.round { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: none; flex: none; }
+.send { background: #555; border: 0; color: #fff; }
+.menu { position: absolute; bottom: 60px; left: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px; min-width: 200px; }
+.menu button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 8px 10px; border-radius: 6px; }
+.menu button:hover { background: #333; }

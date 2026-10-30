@@ -1,47 +1,50 @@
-# Noviz AI for ERPNext: chat integration template
+# tanamera-chat-test
 
-Plug Noviz AI into your own chat. No packages (Node.js 18+).
+A small Next.js chat that uses Noviz AI through the **Tanamera chat gateway**. It is our
+test site, and the template for adding Noviz AI to Tanamera's own chat (Next.js App
+Router, same request as their agent routes: `POST { message, conversationId }`).
 
-| File | What it is | In your app |
+## What goes into your chat
+
+| File | What it is | You change |
 |---|---|---|
-| `noviz.mjs` | The calling code: `askNoviz(message, turnId, onStep)` | Copy into your **backend** as is; fill the keys at the top |
-| `server.mjs` | Example backend route `POST /api/noviz/ask` (streams steps, then the answer) | Copy the marked route into **your backend** |
-| `chat.html` | Example chat page (dark messenger style): steps, "Worked Xs", reply, Noviz AI results | Copy the marked parts into **your chat UI** |
-| `noviz-chat.css` | Noviz AI's own styles for its rendered tables, cards and charts | Load it **unchanged** in your chat UI |
+| `lib/noviz/gateway.ts` | Calls the gateway from your server (the tenant key and the user's ERPNext key never reach the browser); continues long answers | nothing |
+| `app/api/agents/red/noviz/route.ts` | Noviz AI as one of your agents: `POST { message, conversationId }` → an assistant message in your message shape, plus `html` | nothing |
+| `app/api/agents/red/noviz/next-page/route.ts` | "Show me more" under a result | nothing |
+| `app/api/agents/red/noviz/menu/route.ts` | The + menu items (Approvals, Mail) | nothing |
+| `components/noviz/NovizAnswer.tsx` | Shows Noviz AI's tables, cards and charts under the message text; record IDs and next steps ask their follow-up | nothing |
+| `components/noviz/noviz-chat.css` | Noviz AI's result styles | never (same copy as every Noviz app) |
+| `components/noviz/noviz-answer.css` | Those results in your dark style | the colours, to your theme |
+| `lib/currentUser.ts` | **The one function you replace**: return the signed-in chat user and the ERPNext key you assigned to them | yes |
 
-## Architecture
+You manage your users, sessions and ERPNext keys. `currentNovizUser()` returns them as
+variables; Noviz AI stores none of it:
+
+```ts
+return { chatUser, erpApiKey, erpApiSecret };
+```
+
+In your chat page, under an assistant message:
+
+```tsx
+<YourMarkdown>{message.content}</YourMarkdown>
+{message.html && (
+  <NovizAnswer html={message.html} onAsk={(text, hidden) => send(text, { hidden })}
+               onNextPage={(tool, args) => nextPage(tool, args)} erpBaseUrl={ERP_URL} />
+)}
+```
+
+## Settings (`.env`)
 
 ```
-Your chat UI ──message──> Your backend: /api/noviz/ask -> askNoviz() ──> Noviz AI relay (the AI)
-     ^                          │  runs each ERPNext call the relay asks for
-     │                          └──> Your ERPNext (REST API, as the user)
-     └── steps (live), then reply + Noviz AI html (tables / cards / charts)
+NOVIZ_GATEWAY_URL=https://tanamera-gateway.noviz.in
+NOVIZ_TENANT_KEY=tnt_...
+NEXT_PUBLIC_ERP_BASE_URL=https://your-erpnext   # PDF links in results open there
 ```
 
-The relay never touches ERPNext and never holds ERPNext keys. Every ERPNext call runs
-in your backend as the user who owns the API key, so ERPNext applies that user's roles
-and permissions. Keep the keys on the server; never send them to a browser.
+## Run the test chat
 
-## Where what changes
-
-Search the files for `INTEGRATION POINT`.
-
-**Backend** (`server.mjs`)
-- Copy the `POST /api/noviz/ask` route. Check your logged-in user there; in production load
-  that user's ERPNext key from your database.
-
-**Chat UI** (`chat.html`)
-1. Theme: CSS variables in `:root`.
-2. Agent name and badge: `AGENT`.
-3. Backend route: `API_URL`.
-4. Assistant message: "Worked Xs", the steps list, the reply (markdown) and the Noviz AI
-   html. The html must sit inside `<div class="nz-root nz-result">` with `noviz-chat.css`
-   loaded, or tables, cards and charts show unstyled. Keep the `[data-action]` click
-   handler: record IDs and next-step buttons send their follow-up question.
-5. Conversation memory: store `turnId` per conversation; no turnId = new conversation.
-6. PDF links in results: `ERP_LINK_BASE` = your ERPNext URL (empty hides them).
-
-## Run the example
-
-Fill the keys at the top of `noviz.mjs`, then `node server.mjs` and open http://localhost:5055.
-Or without a page: `node example.mjs "how many customers do we have?"`
+```
+npm install
+npm run build && npm start      # http://localhost:3000
+```
