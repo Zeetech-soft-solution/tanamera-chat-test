@@ -4,271 +4,168 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Noviz AI Chat</title>
-<!-- Noviz AI's own result styles (tables, cards, charts, next steps).
-     Keep this file unchanged; it is the same copy every Noviz app ships. -->
+<!-- Noviz AI's result styles (tables, cards, charts). Keep unchanged. -->
 <link rel="stylesheet" href="noviz-chat.css">
 <!--
-  Chat wrapper for Noviz AI, styled like a dark messenger console.
-
-  WHERE WHAT CHANGES in your app (search for "INTEGRATION POINT"):
-   1. CSS variables (:root)      -> swap in your own colours/fonts.
-   2. AGENT (name, subtitle)     -> your agent's name and badge.
-   3. API_URL                    -> your backend route that calls askNoviz
-                                    (see server.mjs).
-   4. addAssistant()             -> if your app already has a message
-                                    component, copy its parts instead:
-                                    "Worked Xs", the steps list, the reply
-                                    (markdown) and Noviz AI's rendered html.
-                                    The html must go inside
-                                    <div class="nz-root nz-result"> with
-                                    noviz-chat.css loaded; otherwise tables,
-                                    cards and charts show unstyled.
-                                    Keep the [data-action] click handler:
-                                    record IDs and next-step buttons send
-                                    their follow-up question.
-   5. turnId                     -> store it per conversation in your app
-                                    (one conversation = one turnId).
-   6. ERP_LINK_BASE              -> your ERPNext URL, so PDF links in
-                                    results open there (empty = hidden).
+  Noviz AI chat inside your chat's wrapper and style.
+  Your app keeps its own look (the CSS below); the chat itself is Noviz AI's:
+  the page only talks to your server's /api routes (server.mjs + noviz.mjs).
+  In your app: copy the <script> into your chat page, point API at your
+  backend, and render answers inside your own message bubble.
 -->
 <style>
-  /* ---- INTEGRATION POINT 1: theme ---- */
+  /* ---- Your chat's style: change these ---- */
   :root {
     --bg:#1b1b1b; --panel:#2a2a2a; --panel-2:#232323; --line:#333; --text:#e8e8e8; --muted:#9a9a9a;
-    --user:#2f5be8; --accent:#f0625d; --head:#3a2c2c; --ok:#cfcfcf;
-    --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-    color-scheme: dark; /* dark scrollbars and form controls */
+    --user:#2f5be8; --accent:#f0625d; --head:#3a2c2c;
+    color-scheme: dark;
   }
   * { box-sizing:border-box; }
   html, body { height:100%; }
   body { margin:0; background:var(--bg); color:var(--text); font:14px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
   button { font:inherit; color:inherit; cursor:pointer; }
-
   .app { height:100%; display:flex; flex-direction:column; }
   header { display:flex; align-items:center; gap:12px; padding:10px 20px; border-bottom:1px solid var(--line); }
-  .avatar { width:32px; height:32px; border-radius:50%; background:var(--accent); display:grid; place-items:center; flex:none; font-size:15px; }
-  header .name { font-weight:600; }
+  .avatar { width:32px; height:32px; border-radius:50%; background:var(--accent); display:grid; place-items:center; flex:none; }
+  .name { font-weight:600; }
   .badge { font-size:11px; background:#333; color:var(--muted); padding:2px 8px; border-radius:6px; margin-left:8px; }
-  header .status { font-size:12px; color:var(--muted); }
   #newChat { margin-left:auto; background:#f2f2f2; color:#111; border:0; border-radius:16px; padding:6px 14px; font-weight:600; }
-
   #log { flex:1; overflow-y:auto; padding:24px 16px 8px; }
-  .row { max-width:720px; margin:0 auto 22px; }
-  .row.user { display:flex; flex-direction:column; align-items:flex-end; }
-  .time { font-size:11px; color:var(--muted); margin-bottom:4px; }
+  .row { max-width:760px; margin:0 auto 20px; }
+  .row.user { display:flex; justify-content:flex-end; }
   .bubble-user { background:var(--user); color:#fff; padding:9px 14px; border-radius:14px; max-width:80%; white-space:pre-wrap; }
-  .who { display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:12px; font-weight:600; }
-  .who .time { margin:0; font-weight:400; }
-  .row.ai { padding-left:40px; position:relative; }
-  .row.ai > .avatar { position:absolute; left:0; top:0; }
-  .bubble-ai { background:var(--panel); border-radius:12px; padding:12px 14px; overflow-x:auto; }
-  .worked { font:12px var(--mono); color:var(--muted); margin-bottom:8px; }
-  .copy { background:none; border:0; color:var(--muted); padding:4px 0; margin-top:4px; font-size:12px; }
-
-  .steps { margin-bottom:10px; }
-  .steps > button { background:none; border:0; color:var(--muted); font:12px var(--mono); padding:0; }
-  .steps ol { list-style:none; margin:8px 0 0; padding:0 0 0 10px; border-left:1px solid var(--line); display:none; }
-  .steps.open ol { display:block; }
-  .steps li { display:flex; gap:8px; padding:4px 0; font:12px var(--mono); }
-  .steps li .dur { margin-left:auto; color:var(--muted); }
-  .steps li small { display:block; color:var(--muted); font-size:11px; }
-  .steps li.fail { color:#f08a8a; }
-
-  .bubble-ai table { border-collapse:collapse; width:100%; margin:8px 0; font-size:13px; }
-  .bubble-ai th { background:var(--head); text-align:left; font-weight:600; }
-  .bubble-ai th, .bubble-ai td { padding:9px 10px; border-bottom:1px solid var(--line); }
-  .bubble-ai code { font-family:var(--mono); background:#1f1f1f; padding:1px 4px; border-radius:4px; }
+  .row.ai { display:flex; gap:10px; }
+  .bubble-ai { flex:1; min-width:0; background:var(--panel); border-radius:12px; padding:12px 14px; overflow-x:auto; }
   .err { color:#f08a8a; }
-  /* Noviz AI's rendered result in this chat's dark theme: noviz-chat.css is
-     unchanged; only its colour variables are set here. Change these to
-     restyle tables, cards and charts. */
+  .thinking { color:var(--muted); }
+  form { position:relative; max-width:760px; width:calc(100% - 32px); margin:0 auto 16px; background:var(--panel-2); border:1px solid var(--line); border-radius:16px; padding:10px 12px; display:flex; align-items:flex-end; gap:8px; }
+  #msg { flex:1; background:none; border:0; outline:0; color:var(--text); font:inherit; resize:none; height:44px; }
+  #plus, #send { width:34px; height:34px; border-radius:50%; border:1px solid var(--line); background:none; flex:none; }
+  #send { background:#555; border:0; color:#fff; }
+  #send:disabled { opacity:.5; }
+  #menu { position:absolute; bottom:60px; left:12px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:6px; min-width:200px; }
+  #menu button { display:block; width:100%; text-align:left; background:none; border:0; padding:8px 10px; border-radius:6px; }
+  #menu button:hover { background:#333; }
+
+  /* ---- Noviz AI results in your style: noviz-chat.css stays unchanged,
+     only its colour variables and the table look are set here ---- */
   .nz-root.nz-result {
     --nz-ink:var(--text); --nz-ink-2:#c4c4c4; --nz-muted:var(--muted);
     --nz-line:var(--line); --nz-line-strong:#4a4a4a; --nz-surface:var(--panel); --nz-soft:var(--head);
     --nz-brand:#ff8a85; --nz-brand-hover:#ffa9a5; --nz-brand-soft:#3a2c2c; --nz-highlight:#4a4026;
     --nz-shadow:none; --ink:var(--text); --ink-secondary:#c4c4c4;
-    display:block; height:auto; margin-top:10px; padding:0; background:transparent; color:var(--text); overflow-x:auto;
+    display:block; height:auto; margin-top:10px; padding:0; background:transparent; color:var(--text);
   }
-  /* Tables and cards in the chat's own table style: tinted header row,
-     normal-case bold headings, thin row lines, no stripes, no outer frame. */
-  .nz-root.nz-result .erp-agent-table-scroll,
-  .nz-root.nz-result .erp-agent-card { border:0; border-radius:0; background:transparent; }
-  .nz-root.nz-result .erp-agent-table { font-size:13px; }
-  .nz-root.nz-result .erp-agent-table th {
-    background:var(--head); color:var(--text); text-transform:none; letter-spacing:0; font-size:13px; font-weight:600; padding:11px 12px;
-  }
+  .nz-root.nz-result .erp-agent-table-scroll, .nz-root.nz-result .erp-agent-card { border:0; border-radius:0; background:transparent; }
+  .nz-root.nz-result .erp-agent-table th { background:var(--head); color:var(--text); text-transform:none; letter-spacing:0; font-size:13px; font-weight:600; padding:11px 12px; }
   .nz-root.nz-result .erp-agent-table td { padding:11px 12px; border-bottom:1px solid var(--line); }
   .nz-root.nz-result .erp-agent-table tbody tr:last-child td { border-bottom:1px solid var(--line); }
-  .nz-root.nz-result .erp-agent-table tbody tr:nth-child(even) td,
-  .nz-root.nz-result .erp-agent-card-row:nth-child(even) { background:transparent; }
-  .nz-root.nz-result .erp-agent-table tbody tr:hover td { background:#2f2f2f; }
+  .nz-root.nz-result .erp-agent-table tbody tr:nth-child(even) td, .nz-root.nz-result .erp-agent-card-row:nth-child(even) { background:transparent; }
   .nz-root.nz-result .erp-agent-card-row { padding:11px 12px; border-top:0; border-bottom:1px solid var(--line); }
   .nz-root.nz-result .erp-agent-card-label { color:var(--muted); text-transform:none; letter-spacing:0; font-size:13px; font-weight:400; }
-  .nz-root.nz-result .erp-agent-card-value { font-size:13px; }
   .nz-root.nz-result a { color:var(--nz-brand); }
-
-  form { max-width:720px; width:calc(100% - 32px); margin:0 auto 16px; background:var(--panel-2); border:1px solid var(--line); border-radius:16px; padding:10px 12px; }
-  #msg { width:100%; background:none; border:0; outline:0; color:var(--text); font:inherit; resize:none; height:44px; }
-  .bar { display:flex; align-items:center; gap:8px; }
-  #send { margin-left:auto; width:34px; height:34px; border-radius:50%; border:0; background:#555; color:#fff; font-size:16px; }
-  #send:disabled { opacity:.5; cursor:default; }
-  .hint { font-size:11px; color:var(--muted); }
 </style>
 </head>
 <body>
 <div class="app">
   <header>
     <div class="avatar">✦</div>
-    <div>
-      <div class="name"><span id="agentName"></span><span class="badge" id="agentBadge"></span></div>
-      <div class="status" id="status">Ready</div>
-    </div>
-    <button id="newChat" type="button">＋ New task</button>
+    <div><span class="name">ERP Assistant</span><span class="badge">Noviz AI</span></div>
+    <button id="newChat" type="button">＋ New chat</button>
   </header>
   <div id="log"></div>
   <form id="form">
-    <textarea id="msg" placeholder="Reply…" autofocus></textarea>
-    <div class="bar"><span class="hint">Enter to send · Shift+Enter for a new line</span><button id="send" title="Send">↑</button></div>
+    <button id="plus" type="button" title="More">＋</button>
+    <div id="menu" hidden></div>
+    <textarea id="msg" placeholder="Ask about your ERPNext…" autofocus></textarea>
+    <button id="send" title="Send">↑</button>
   </form>
 </div>
 <script>
-  // ---- INTEGRATION POINT 2: agent ----
-  const AGENT = { name: "ERP Assistant", badge: "Noviz AI" };
-  // ---- INTEGRATION POINT 3: your backend route that calls askNoviz ----
-  const API_URL = "/api/noviz/ask";
-  // ---- INTEGRATION POINT 6: your ERPNext address, for PDF links in results.
-  // They open in ERPNext, so they work for users logged in there (the PDF
-  // buttons from the Noviz AI plugin also need the plugin installed).
-  // Leave empty to hide those links. ----
+  // Your backend's chat API (server.mjs) and your ERPNext address, so PDF
+  // links in answers open there (leave empty to hide them).
+  const API = "api/";
   const ERP_LINK_BASE = "";
-  // ---- INTEGRATION POINT 5: one turnId per conversation ----
-  let turnId = null;
 
   const $ = (id) => document.getElementById(id);
-  $("agentName").textContent = AGENT.name;
-  $("agentBadge").textContent = AGENT.badge;
-  $("msg").placeholder = `Reply to ${AGENT.name}…`;
+  const log = $("log");
+  let lastTurnId = null, busy = false;
 
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const now = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const secs = (ms) => (ms / 1000).toFixed(1) + "s";
+  // The reply text: bold, code, bullets, line breaks.
+  const md = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/^[-*] (.*)$/gm, "• $1").replace(/\n/g, "<br>");
+  // Charts carry a few fixed light colours; map them to the dark style.
+  const DARK = { "#1B1E1C": "#e8e8e8", "#6B7268": "#c4c4c4", "#9BA098": "#9a9a9a", "#F5F6F3": "#3a3a3a", "#FFFFFF": "#2a2a2a", "#E3E4DF": "#333333" };
+  const dark = (h) => h.replace(/#1B1E1C|#6B7268|#9BA098|#F5F6F3|#FFFFFF|#E3E4DF/gi, (c) => DARK[c.toUpperCase()]);
 
-  // Small markdown: headings, bold, code, lists, markdown tables, line breaks.
-  function md(text) {
-    const lines = esc(text).split("\n");
-    let out = "", i = 0;
-    const inline = (s) => s.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>");
-    while (i < lines.length) {
-      if (/^\s*\|/.test(lines[i]) && /^\s*\|?\s*:?-{3,}/.test(lines[i + 1] || "")) {
-        const cells = (l) => l.trim().replace(/^\||\|$/g, "").split("|").map((c) => inline(c.trim()));
-        out += "<table><tr>" + cells(lines[i]).map((c) => `<th>${c}</th>`).join("") + "</tr>";
-        i += 2;
-        while (i < lines.length && /^\s*\|/.test(lines[i])) out += "<tr>" + cells(lines[i++]).map((c) => `<td>${c}</td>`).join("") + "</tr>";
-        out += "</table>";
-        continue;
-      }
-      const l = lines[i++];
-      if (/^#{1,4}\s/.test(l)) out += `<p><b>${inline(l.replace(/^#+\s/, ""))}</b></p>`;
-      else if (/^\s*[-*]\s/.test(l)) out += `<div>• ${inline(l.replace(/^\s*[-*]\s/, ""))}</div>`;
-      else out += l.trim() ? `<div>${inline(l)}</div>` : "<br>";
-    }
-    return out;
-  }
-
-  // Charts carry a few fixed light-theme colours inline (text, track,
-  // donut hole, borders). Map them to the dark theme; remove this function
-  // for a light chat.
-  const CHART_COLOURS = { "#1B1E1C": "#e8e8e8", "#6B7268": "#c4c4c4", "#9BA098": "#9a9a9a", "#F5F6F3": "#3a3a3a", "#FFFFFF": "#2a2a2a", "#E3E4DF": "#333333" };
-  const darkCharts = (html) => html.replace(/#1B1E1C|#6B7268|#9BA098|#F5F6F3|#FFFFFF|#E3E4DF/gi, (c) => CHART_COLOURS[c.toUpperCase()]);
-
-  function scroll() { $("log").scrollTop = $("log").scrollHeight; }
-
-  function addUser(text) {
-    $("log").insertAdjacentHTML("beforeend", `<div class="row user"><div class="time">${now()}</div><div class="bubble-user">${esc(text)}</div></div>`);
-    scroll();
-  }
-
-  // ---- INTEGRATION POINT 4: the assistant message ----
-  function addAssistant() {
+  function add(cls, html) {
     const row = document.createElement("div");
-    row.className = "row ai";
-    row.innerHTML = `<div class="avatar">✦</div>
-      <div class="who">${esc(AGENT.name)} <span class="time">${now()}</span></div>
-      <div class="bubble-ai"><div class="worked">Working…</div>
-        <div class="steps"><button type="button">☰ <span class="n">0</span> steps ▾</button><ol></ol></div>
-        <div class="body"></div></div>
-      <button class="copy" type="button" title="Copy">⧉ Copy</button>`;
-    row.querySelector(".steps > button").onclick = () => row.querySelector(".steps").classList.toggle("open");
-    row.querySelector(".copy").onclick = () => navigator.clipboard?.writeText(row.querySelector(".body").innerText);
-    $("log").appendChild(row);
-    scroll();
-    const started = Date.now();
-    const tick = setInterval(() => { row.querySelector(".worked").textContent = `Working ${secs(Date.now() - started)}`; }, 200);
-    let count = 0;
-    return {
-      step(s) {
-        row.querySelector(".n").textContent = ++count;
-        row.querySelector("ol").insertAdjacentHTML("beforeend",
-          `<li class="${s.ok ? "" : "fail"}">${s.ok ? "✓" : "✕"}<span>${esc(s.label)}<small>${s.ok ? "Done" : "Refused by ERPNext"}</small></span><span class="dur">${secs(s.ms)}</span></li>`);
-      },
-      final(a) {
-        clearInterval(tick);
-        row.querySelector(".worked").textContent = `Worked ${secs(a.ms)}`;
-        if (!count) row.querySelector(".steps").remove();
-        // Noviz AI's rendered html (tables, cards, charts) goes inside .nz-root.
-        row.querySelector(".body").innerHTML = md(a.reply) + (a.html ? `<div class="nz-root nz-result">${darkCharts(a.html)}</div>` : "");
-        // Links in the html (PDF downloads) are ERPNext paths ("/api/method/...").
-        // Point them at your ERPNext, or hide them when ERP_LINK_BASE is empty.
-        row.querySelectorAll('.nz-result a[href^="/"]').forEach((link) => {
-          if (ERP_LINK_BASE) { link.href = ERP_LINK_BASE + link.getAttribute("href"); link.target = "_blank"; }
-          else link.remove();
-        });
-        scroll();
-      },
-      error(message) {
-        clearInterval(tick);
-        row.querySelector(".worked").textContent = "Stopped";
-        row.querySelector(".body").innerHTML = `<span class="err">${esc(message)}</span>`;
-      },
-    };
+    row.className = "row " + cls;
+    row.innerHTML = cls === "user" ? `<div class="bubble-user">${html}</div>` : `<div class="avatar">✦</div><div class="bubble-ai">${html}</div>`;
+    log.appendChild(row);
+    log.scrollTop = log.scrollHeight;
+    return row;
   }
 
-  async function ask(message) {
-    addUser(message);
-    const view = addAssistant();
-    $("send").disabled = true; $("status").textContent = "Working…";
+  async function call(path, body) {
+    const res = await fetch(API + path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+    return data;
+  }
+
+  // One question or next page: show thinking, then the answer.
+  async function run(path, body, userText) {
+    if (busy) return;
+    busy = true; $("send").disabled = true;
+    if (userText) add("user", esc(userText));
+    const pending = add("ai", '<span class="thinking">Thinking…</span>');
     try {
-      const res = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message, turnId }) });
-      const reader = res.body.getReader(), dec = new TextDecoder();
-      let buf = "";
-      for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        let nl;
-        while ((nl = buf.indexOf("\n")) >= 0) {
-          const ev = JSON.parse(buf.slice(0, nl)); buf = buf.slice(nl + 1);
-          if (ev.type === "step") view.step(ev);
-          else if (ev.type === "final") { turnId = ev.turnId; view.final(ev); }
-          else if (ev.type === "error") view.error(ev.message);
-        }
-      }
+      const r = await call(path, body);
+      if (r.turnId) lastTurnId = r.turnId;
+      pending.querySelector(".bubble-ai").innerHTML = md(r.reply || "") + (r.html ? `<div class="nz-root nz-result">${dark(r.html)}</div>` : "");
+      pending.querySelectorAll('.nz-result a[href^="/"]').forEach((a) => {
+        if (ERP_LINK_BASE) { a.href = ERP_LINK_BASE + a.getAttribute("href"); a.target = "_blank"; } else a.remove();
+      });
     } catch (e) {
-      view.error(e.message);
+      pending.querySelector(".bubble-ai").innerHTML = `<span class="err">${esc(e.message)}</span>`;
     }
-    $("send").disabled = false; $("status").textContent = "Ready"; $("msg").focus();
+    busy = false; $("send").disabled = false; $("msg").focus();
+    log.scrollTop = log.scrollHeight;
   }
 
-  // Buttons inside Noviz AI's html (record IDs, suggested next steps) carry
-  // the follow-up question in data-action; clicking one asks it.
-  $("log").addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-action]");
-    if (btn && !$("send").disabled) ask(btn.dataset.action);
+  const send = (text, show = true) => run("send", { prompt: text, previous_turn_id: lastTurnId }, show ? text : null);
+
+  // Buttons inside an answer: "Show more" goes straight to the next page;
+  // record IDs and next steps ask their follow-up question.
+  log.addEventListener("click", (e) => {
+    const more = e.target.closest(".erp-agent-next-page[data-query]");
+    if (more) {
+      e.preventDefault();
+      try { const q = JSON.parse(more.dataset.query); return run("next_page", { tool: q.tool, args: q.args }); } catch { return send(more.dataset.action); }
+    }
+    const btn = e.target.closest("button[data-action]");
+    if (btn) { e.preventDefault(); send(btn.dataset.action, btn.dataset.hidden !== "1"); }
   });
 
-  $("form").onsubmit =(e) => { e.preventDefault(); const m = $("msg").value.trim(); if (m) { $("msg").value = ""; ask(m); } };
+  // The ＋ menu: Approvals, Mail ... as the relay offers them.
+  call("chat_menu").then(({ items }) => {
+    for (const it of items || []) {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = it.label;
+      b.onclick = () => {
+        $("menu").hidden = true;
+        if (it.prompt) return send(it.prompt);
+        add("user", esc(it.label)); add("ai", md(it.empty || ""));
+      };
+      $("menu").appendChild(b);
+    }
+  }).catch(() => {});
+  $("plus").onclick = () => { $("menu").hidden = !$("menu").hidden; };
+
+  $("form").onsubmit = (e) => { e.preventDefault(); const t = $("msg").value.trim(); if (t) { $("msg").value = ""; send(t); } };
   $("msg").onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("form").requestSubmit(); } };
-  $("newChat").onclick = () => { turnId = null; $("log").innerHTML = ""; $("msg").focus(); };
+  $("newChat").onclick = () => { lastTurnId = null; log.innerHTML = ""; $("msg").focus(); };
 </script>
 </body>
 </html>

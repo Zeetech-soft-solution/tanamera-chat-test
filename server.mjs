@@ -1,52 +1,55 @@
-// Example backend: serves chat.html and one API route that calls askNoviz.
+// Example server: serves the chat page and the chat API the page calls.
+// In your app, copy the three /api routes into your own backend and keep
+// noviz.mjs next to them.
 //
-// WHERE THIS GOES IN YOUR APP: you already have a backend. Copy only the
-// POST /api/noviz/ask handler below into it (Express, Next.js route, etc.).
-// Keep noviz.mjs next to it. The keys stay in noviz.mjs on the server.
+//   POST /api/send       { prompt, previous_turn_id } -> final answer
+//   POST /api/next_page  { tool, args }               -> next page of a list
+//   GET  /api/chat_menu                               -> { items }
 //
-// Run the example: node server.mjs  ->  http://localhost:5055
+// Run: node server.mjs  ->  http://localhost:5055
 
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { askNoviz } from "./noviz.mjs";
+import { askNoviz, nextPage, chatMenu } from "./noviz.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const PORT = 5055;
+const PORT = Number(process.env.PORT || 5055);
+const FILES = { "/": ["chat.html", "text/html"], "/chat.html": ["chat.html", "text/html"], "/noviz-chat.css": ["noviz-chat.css", "text/css"] };
+
+const json = (res, status, body) => {
+  res.writeHead(status, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(body));
+};
+
+async function readBody(req) {
+  let raw = "";
+  for await (const chunk of req) raw += chunk;
+  return JSON.parse(raw || "{}");
+}
 
 http.createServer(async (req, res) => {
-  if (req.method === "GET" && (req.url === "/" || req.url === "/chat.html")) {
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    return res.end(fs.readFileSync(path.join(here, "chat.html")));
+  const file = req.method === "GET" && FILES[req.url];
+  if (file) {
+    res.writeHead(200, { "Content-Type": `${file[1]}; charset=utf-8` });
+    return res.end(fs.readFileSync(path.join(here, file[0])));
   }
-  if (req.method === "GET" && req.url === "/noviz-chat.css") {
-    res.writeHead(200, { "Content-Type": "text/css; charset=utf-8" });
-    return res.end(fs.readFileSync(path.join(here, "noviz-chat.css")));
-  }
-
-  // ---- INTEGRATION POINT (backend): copy this route into your backend ----
-  // Body: { message, turnId }. Response: one JSON object per line (NDJSON):
-  //   {"type":"step","label":"Read Customer list","ok":true,"ms":412}
-  //   {"type":"final","reply":"...","html":"...","turnId":"...","ms":5230}
-  //   {"type":"error","message":"..."}
-  // Your app: check the logged-in user here, and in production load that
-  // user's ERPNext key from your database before calling askNoviz.
-  if (req.method === "POST" && req.url === "/api/noviz/ask") {
-    let raw = "";
-    for await (const chunk of req) raw += chunk;
-    const { message, turnId } = JSON.parse(raw || "{}");
-    res.writeHead(200, { "Content-Type": "application/x-ndjson", "Cache-Control": "no-cache" });
-    const send = (obj) => res.write(JSON.stringify(obj) + "\n");
-    try {
-      const answer = await askNoviz(message, turnId, (step) => send({ type: "step", ...step }));
-      send({ type: "final", ...answer });
-    } catch (e) {
-      send({ type: "error", message: e.message });
+  try {
+    if (req.method === "POST" && req.url === "/api/send") {
+      const { prompt, previous_turn_id } = await readBody(req);
+      if (!prompt) return json(res, 400, { error: "Please type a question." });
+      return json(res, 200, await askNoviz(prompt, previous_turn_id));
     }
-    return res.end();
+    if (req.method === "POST" && req.url === "/api/next_page") {
+      const { tool, args } = await readBody(req);
+      return json(res, 200, await nextPage(tool, args));
+    }
+    if (req.method === "GET" && req.url === "/api/chat_menu") {
+      return json(res, 200, { items: await chatMenu() });
+    }
+  } catch (e) {
+    return json(res, 502, { error: e.message });
   }
-  // ---- end of integration point ----
-
   res.writeHead(404).end();
 }).listen(PORT, "127.0.0.1", () => console.log(`Chat: http://localhost:${PORT}`));
