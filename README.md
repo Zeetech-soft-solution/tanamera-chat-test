@@ -43,6 +43,24 @@ NOVIZ_TENANT_KEY=tnt_...
 NEXT_PUBLIC_ERP_BASE_URL=https://your-erpnext   # other ERPNext links in results open there
 ```
 
+## The gateway call (`lib/noviz/gateway.ts`)
+
+Server to server, every request:
+
+```
+POST https://tanamera-gateway.noviz.in/v1/chat
+Authorization: Bearer tnt_<Noviz AI tenant key>
+X-Chat-User: <your chat user id>
+X-ERP-Authorization: token <api_key>:<api_secret>
+Content-Type: application/json
+
+{ "message": "How many open sales orders?", "conversationId": "c1", "can_continue": true }
+```
+
+Answer: `{ conversationId, status: "final", turnId, reply, html, document }` (`reply` is
+markdown, `html` goes to `NovizAnswer`), or `{ status: "working", turnId }`: call
+`/v1/chat/continue` until final. Errors: `{ error: { code, message } }`.
+
 ## Run the test chat
 
 ```

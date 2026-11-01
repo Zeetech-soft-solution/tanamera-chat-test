@@ -30,6 +30,7 @@ export interface NovizAnswer {
   turnId: string;
   reply: string; // markdown
   html: string; // Noviz AI's tables / cards / charts (render with NovizAnswer)
+  document: unknown | null; // a document attached to the answer, or null
 }
 
 export class NovizError extends Error {

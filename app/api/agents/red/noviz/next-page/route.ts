@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   if (typeof tool !== "string" || !tool) return NextResponse.json({ error: "tool is required" }, { status: 400 });
   try {
     const answer = await novizNextPage(user, tool, args || {}, conversationId);
-    return NextResponse.json({ message: { id: answer.turnId, role: "assistant", content: answer.reply, html: answer.html, createdAt: Date.now(), state: "done" } });
+    return NextResponse.json({ message: { id: answer.turnId, role: "assistant", content: answer.reply, html: answer.html, document: answer.document, createdAt: Date.now(), state: "done" } });
   } catch (e) {
     if (e instanceof NovizError) return NextResponse.json({ error: e.message, code: e.code }, { status: e.status });
     throw e;

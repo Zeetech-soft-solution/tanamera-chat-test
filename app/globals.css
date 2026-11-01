@@ -18,6 +18,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .row.user { justify-content: flex-end; }
 .bubble-user { background: var(--user); color: #fff; padding: 9px 14px; border-radius: 14px; max-width: 80%; white-space: pre-wrap; }
 .bubble-ai { flex: 1; min-width: 0; background: var(--panel); border-radius: 12px; padding: 12px 14px; overflow-x: auto; }
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+.md p, .md ul, .md ol { margin: 0 0 8px; }
+.md ul, .md ol { padding-left: 20px; }
+.md code { background: #333; padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+.md table { border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+.md th, .md td { border: 1px solid var(--line); padding: 5px 10px; text-align: left; }
+.md th { background: var(--panel-2); }
+.md a { color: var(--accent); }
 .thinking { color: var(--muted); }
 .error { color: #f08a8a; }
 .composer { max-width: 760px; width: calc(100% - 32px); margin: 0 auto 16px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 16px; padding: 10px 12px; display: flex; gap: 8px; align-items: flex-end; position: relative; }

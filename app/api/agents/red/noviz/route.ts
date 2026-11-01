@@ -28,6 +28,7 @@ export async function POST(request: Request) {
         role: "assistant",
         content: answer.reply,
         html: answer.html,
+        document: answer.document,
         activities: [],
         references: [],
         createdAt: Date.now(),

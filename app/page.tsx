@@ -5,17 +5,17 @@
  * <NovizAnswer> under each assistant message that has `html`.
  */
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { NovizAnswer } from "@/components/noviz/NovizAnswer";
 
 type Message = { id: string; role: "user" | "assistant"; content: string; html?: string; error?: boolean; pending?: boolean };
 
 const ERP_BASE_URL = process.env.NEXT_PUBLIC_ERP_BASE_URL || "";
 
-// Minimal markdown for the reply text: bold, code, bullets, line breaks.
+// The reply text is markdown (bold, lists, tables): render it with a markdown library.
 function Markdown({ text }: { text: string }) {
-  const esc = text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-  const html = esc.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/^[-*] (.*)$/gm, "• $1").replace(/\n/g, "<br>");
-  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+  return <div className="md"><ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown></div>;
 }
 
 export default function ChatTest() {
