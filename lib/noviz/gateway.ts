@@ -11,9 +11,25 @@
  *   NOVIZ_TENANT_KEY=tnt_...
  */
 import "server-only";
+import { Agent, fetch, type Response as GatewayResponse } from "undici";
 
 const GATEWAY_URL = process.env.NOVIZ_GATEWAY_URL!;
 const TENANT_KEY = process.env.NOVIZ_TENANT_KEY!;
+
+// The connection to the gateway stays open between messages: a new one costs
+// DNS, TCP and TLS before the first byte, and a far server pays that on every
+// message once the default pool has closed it (after 4 s idle). After the
+// first request it is kept 50 s and warmed every 45 s, so later messages
+// start at once. undici's own fetch with its pool works the same on any Node.
+const connection = new Agent({ keepAliveTimeout: 50_000, keepAliveMaxTimeout: 50_000 });
+let warm = false;
+function keepWarm() {
+  if (warm) return;
+  warm = true;
+  setInterval(() => {
+    fetch(`${GATEWAY_URL}/healthz`, { dispatcher: connection }).then((r) => r.arrayBuffer()).catch(() => undefined);
+  }, 45_000).unref();
+}
 
 /** Who is chatting, from your own session and your own key store. */
 export interface NovizUser {
@@ -49,9 +65,10 @@ async function call(user: NovizUser, path: string, init: { method: "GET" | "POST
       ...(init.body ? { "Content-Type": "application/json" } : {}),
     },
     body: init.body ? JSON.stringify(init.body) : undefined,
-    cache: "no-store",
+    dispatcher: connection,
   });
-  const json = await response.json().catch(() => ({}));
+  keepWarm();
+  const json: any = await response.json().catch(() => ({}));
   if (!response.ok) throw new NovizError(response.status, json.error?.code || "error", json.error?.message || `Noviz AI answered ${response.status}`);
   return json;
 }
@@ -77,17 +94,17 @@ export async function novizNextPage(user: NovizUser, tool: string, args: Record<
 }
 
 /** "Download PDF" under an answer: the PDF for the answer's report spec. */
-export async function novizPdf(user: NovizUser, spec: string): Promise<Response> {
+export async function novizPdf(user: NovizUser, spec: string): Promise<GatewayResponse> {
   const response = await fetch(`${GATEWAY_URL}/v1/chat/pdf?spec=${encodeURIComponent(spec)}`, {
     headers: {
       Authorization: `Bearer ${TENANT_KEY}`,
       "X-Chat-User": user.chatUser,
       "X-ERP-Authorization": `token ${user.erpApiKey}:${user.erpApiSecret}`,
     },
-    cache: "no-store",
+    dispatcher: connection,
   });
   if (!response.ok) {
-    const json = await response.json().catch(() => ({}));
+    const json: any = await response.json().catch(() => ({}));
     throw new NovizError(response.status, json.error?.code || "error", json.error?.message || `Noviz AI answered ${response.status}`);
   }
   return response;

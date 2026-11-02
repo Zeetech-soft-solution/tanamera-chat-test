@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   if (!spec) return NextResponse.json({ error: "spec is required" }, { status: 400 });
   try {
     const pdf = await novizPdf(user, spec);
-    return new Response(pdf.body, {
+    return new Response(await pdf.arrayBuffer(), {
       headers: { "Content-Type": "application/pdf", "Content-Disposition": pdf.headers.get("content-disposition") || 'attachment; filename="report.pdf"' },
     });
   } catch (e) {
