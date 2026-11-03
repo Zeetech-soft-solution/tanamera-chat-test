@@ -1,15 +1,44 @@
 "use client";
 /**
  * The test chat. In Tanamera's chat, the same calls come from your own chat
- * page: POST /api/agents/red/noviz { message, conversationId }, and
- * <NovizAnswer> under each assistant message that has `html`.
+ * page: POST /api/agents/red/noviz/stream { message, conversationId } (read as
+ * a stream: <NovizSteps> while it works), and <NovizAnswer> under each
+ * assistant message that has `html`.
  */
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { NovizAnswer } from "@/components/noviz/NovizAnswer";
+import { NovizStep, NovizSteps } from "@/components/noviz/NovizSteps";
 
-type Message = { id: string; role: "user" | "assistant"; content: string; html?: string; error?: boolean; pending?: boolean };
+type Message = {
+  id: string; role: "user" | "assistant"; content: string; html?: string; error?: boolean; pending?: boolean;
+  steps?: NovizStep[]; startedAt?: number; endedAt?: number;
+};
+
+/** Reads a Server-Sent Events body as it arrives: onEvent(name, data) per event. */
+async function readEvents(body: ReadableStream<Uint8Array>, onEvent: (event: string, data: any) => void) {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let end;
+    while ((end = buffer.indexOf("\n\n")) >= 0) {
+      const block = buffer.slice(0, end);
+      buffer = buffer.slice(end + 2);
+      let event = "message";
+      let data = "";
+      for (const line of block.split("\n")) {
+        if (line.startsWith("event: ")) event = line.slice(7);
+        else if (line.startsWith("data: ")) data += line.slice(6);
+      }
+      if (data) onEvent(event, JSON.parse(data)); // lines starting with ":" only keep the stream open
+    }
+  }
+}
 
 const ERP_BASE_URL = process.env.NEXT_PUBLIC_ERP_BASE_URL || "";
 
@@ -51,7 +80,36 @@ export default function ChatTest() {
     setBusy(false);
   }
 
-  const ask = (text: string, hidden = false) => run("/api/agents/red/noviz", { message: text, conversationId }, hidden ? null : text);
+  // A question: streamed, so the steps show while Noviz AI works.
+  async function ask(text: string, hidden = false) {
+    if (busy) return;
+    setBusy(true);
+    const id = crypto.randomUUID();
+    const startedAt = Date.now();
+    const update = (change: (m: Message) => Message) => setMessages((all) => all.map((x) => (x.id === id ? change(x) : x)));
+    setMessages((m) => [...m, ...(hidden ? [] : [{ id: crypto.randomUUID(), role: "user" as const, content: text }]), { id, role: "assistant", content: "", pending: true, steps: [], startedAt }]);
+    try {
+      const res = await fetch("/api/agents/red/noviz/stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text, conversationId }) });
+      if (!res.ok || !res.body) throw new Error((await res.json().catch(() => ({}))).error || `Error ${res.status}`);
+      let answered = false;
+      await readEvents(res.body, (event, data) => {
+        if (event === "step") update((m) => ({ ...m, steps: [...(m.steps || []).filter((s) => s.id !== data.id), data].sort((a, b) => a.id - b.id) }));
+        if (event === "answer") {
+          answered = true;
+          if (data.conversationId) setConversationId(data.conversationId);
+          update((m) => ({ ...m, pending: false, endedAt: Date.now(), content: data.reply, html: data.html }));
+        }
+        if (event === "error") {
+          answered = true;
+          update((m) => ({ ...m, pending: false, endedAt: Date.now(), error: true, content: data.error?.message || "Something went wrong." }));
+        }
+      });
+      if (!answered) throw new Error("The answer stopped before it was complete. Please ask again.");
+    } catch (e) {
+      update((m) => ({ ...m, pending: false, endedAt: Date.now(), error: true, content: (e as Error).message }));
+    }
+    setBusy(false);
+  }
   const nextPage = (tool: string, args: Record<string, unknown>) => run("/api/agents/red/noviz/next-page", { tool, args, conversationId }, null);
 
   return (
@@ -72,7 +130,8 @@ export default function ChatTest() {
             <div key={m.id} className="row">
               <div className="avatar">✦</div>
               <div className="bubble-ai">
-                {m.pending ? <span className="thinking">{m.content}</span> : m.error ? <span className="error">{m.content}</span> : <Markdown text={m.content} />}
+                {m.startedAt !== undefined && <NovizSteps steps={m.steps || []} startedAt={m.startedAt} endedAt={m.endedAt} />}
+                {m.pending ? (m.content && <span className="thinking">{m.content}</span>) : m.error ? <span className="error">{m.content}</span> : <Markdown text={m.content} />}
                 {m.html && <NovizAnswer html={m.html} onAsk={ask} onNextPage={nextPage} erpBaseUrl={ERP_BASE_URL} />}
               </div>
             </div>

@@ -87,6 +87,33 @@ export async function askNoviz(user: NovizUser, message: string, conversationId?
   return untilFinal(user, answer.conversationId, answer);
 }
 
+/**
+ * The same question, answered as a stream (Server-Sent Events): `step` events
+ * while Noviz AI works ({ id, label, status: "running" | "done" | "error", ms }),
+ * then one `answer` event (the NovizAnswer above) or one `error` event
+ * ({ error: { code, message } }). Returns the gateway's response; its body is
+ * the stream, passed on to the browser as it is.
+ */
+export async function streamNoviz(user: NovizUser, message: string, conversationId?: string): Promise<GatewayResponse> {
+  const response = await fetch(`${GATEWAY_URL}/v1/chat/stream`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${TENANT_KEY}`,
+      "X-Chat-User": user.chatUser,
+      "X-ERP-Authorization": `token ${user.erpApiKey}:${user.erpApiSecret}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ message, conversationId }),
+    dispatcher: connection,
+  });
+  keepWarm();
+  if (!response.ok) {
+    const json: any = await response.json().catch(() => ({}));
+    throw new NovizError(response.status, json.error?.code || "error", json.error?.message || `Noviz AI answered ${response.status}`);
+  }
+  return response;
+}
+
 /** "Show me more" under a result: the next page, without asking the AI again. */
 export async function novizNextPage(user: NovizUser, tool: string, args: Record<string, unknown>, conversationId?: string): Promise<NovizAnswer> {
   const answer = await call(user, "/v1/chat/next-page", { method: "POST", body: { tool, args, conversationId, can_continue: true } });

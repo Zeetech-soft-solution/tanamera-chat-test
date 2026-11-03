@@ -10,6 +10,8 @@ Router, same request as their agent routes: `POST { message, conversationId }`).
 |---|---|---|
 | `lib/noviz/gateway.ts` | Calls the gateway from your server (the tenant key and the user's ERPNext key never reach the browser); continues long answers | nothing |
 | `app/api/agents/red/noviz/route.ts` | Noviz AI as one of your agents: `POST { message, conversationId }` → an assistant message in your message shape, plus `html` | nothing |
+| `app/api/agents/red/noviz/stream/route.ts` | The same agent answered as a stream: the steps while Noviz AI works, then the answer (see "Steps while it works") | nothing |
+| `components/noviz/NovizSteps.tsx` + `noviz-steps.css` | "Working… 3.1s" with the current step, then "Worked 9.4s · 5 steps ▾" above the reply | the colours, to your theme |
 | `app/api/agents/red/noviz/next-page/route.ts` | "Show me more" under a result | nothing |
 | `app/api/agents/red/noviz/menu/route.ts` | The + menu items (Approvals, Mail) | nothing |
 | `app/api/agents/red/noviz/pdf/route.ts` | "Download PDF" under an answer (the gateway builds it from your ERPNext) | nothing |
@@ -60,6 +62,37 @@ Content-Type: application/json
 Answer: `{ conversationId, status: "final", turnId, reply, html, document }` (`reply` is
 markdown, `html` goes to `NovizAnswer`), or `{ status: "working", turnId }`: call
 `/v1/chat/continue` until final. Errors: `{ error: { code, message } }`.
+
+## Steps while it works (stream)
+
+`POST /v1/chat/stream` takes the same headers and `{ message, conversationId }` and answers
+`text/event-stream` (Server-Sent Events). The stream stays open until the answer is final
+(no `working` / continue):
+
+```
+event: step
+data: {"id":1,"label":"Understanding your question","status":"running"}
+
+event: step
+data: {"id":1,"label":"Understanding your question","status":"done","ms":1840}
+
+event: step
+data: {"id":2,"label":"Looking up Sales Invoice list","status":"running"}
+...
+event: answer
+data: {"conversationId":"c1","status":"final","turnId":"…","reply":"…","html":"…","document":null}
+```
+
+- `step`: `{ id, label, status: "running" | "done" | "error", ms }`; a later event for the
+  same `id` replaces the earlier one. `error` means ERPNext refused that call (the AI reads
+  the refusal and carries on).
+- `answer`: exactly the `/v1/chat` answer. `error`: `{ error: { code, message } }`, last event.
+- Lines starting with `:` only keep the connection open; skip them.
+
+Your route passes the stream to the browser as it is (`stream/route.ts`); the page reads it
+with `fetch` + `response.body.getReader()` (`readEvents` in `app/page.tsx`) and shows
+`<NovizSteps>`. Behind nginx, keep `proxy_buffering` off for this route (the responses
+carry `X-Accel-Buffering: no`).
 
 ## Run the test chat
 
