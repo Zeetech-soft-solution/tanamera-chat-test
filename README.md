@@ -15,6 +15,7 @@ Router, same request as their agent routes: `POST { message, conversationId }`).
 | `app/api/agents/red/noviz/next-page/route.ts` | "Show me more" under a result | nothing |
 | `app/api/agents/red/noviz/menu/route.ts` | The + menu items (Approvals, Mail) | nothing |
 | `app/api/agents/red/noviz/pdf/route.ts` | "Download PDF" under an answer (the gateway builds it from your ERPNext) | nothing |
+| `app/api/agents/red/noviz/pdf/document/route.ts` | "Download PDF" of one document (a quotation, an invoice): ERPNext's own print, through the gateway | nothing |
 | `components/noviz/NovizAnswer.tsx` | Shows Noviz AI's tables, cards and charts under the message text; record IDs and next steps ask their follow-up | nothing |
 | `components/noviz/noviz-chat.css` | Noviz AI's result styles | never (same copy as every Noviz app) |
 | `components/noviz/noviz-answer.css` | Those results in your dark style | the colours, to your theme |

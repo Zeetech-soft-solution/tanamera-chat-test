@@ -137,6 +137,24 @@ export async function novizPdf(user: NovizUser, spec: string): Promise<GatewayRe
   return response;
 }
 
+/** "Download PDF" of one document: ERPNext's own print, as the user. */
+export async function novizDocumentPdf(user: NovizUser, doctype: string, name: string, format?: string): Promise<GatewayResponse> {
+  const query = new URLSearchParams({ doctype, name, ...(format ? { format } : {}) });
+  const response = await fetch(`${GATEWAY_URL}/v1/chat/document-pdf?${query}`, {
+    headers: {
+      Authorization: `Bearer ${TENANT_KEY}`,
+      "X-Chat-User": user.chatUser,
+      "X-ERP-Authorization": `token ${user.erpApiKey}:${user.erpApiSecret}`,
+    },
+    dispatcher: connection,
+  });
+  if (!response.ok) {
+    const json: any = await response.json().catch(() => ({}));
+    throw new NovizError(response.status, json.error?.code || "error", json.error?.message || `Noviz AI answered ${response.status}`);
+  }
+  return response;
+}
+
 /** The chat's + menu items (Approvals, Mail, ...). */
 export async function novizMenu(user: NovizUser): Promise<{ id: string; label: string; prompt?: string; empty?: string }[]> {
   return (await call(user, "/v1/chat/menu", { method: "GET" })).items || [];
