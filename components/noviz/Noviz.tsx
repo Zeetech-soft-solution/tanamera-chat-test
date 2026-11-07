@@ -150,8 +150,12 @@ export function NovizAnswer(props: {
 
   // "Download PDF" goes to your own routes (the gateway gets the PDF); other
   // ERPNext paths ("/api/method/...") open on your ERPNext, or are hidden.
+  // Runs after every render: when your chat page re-renders, the result's html
+  // can be put back as it came, so its links are set again. A link already set
+  // is marked (data-nz-link) and left alone.
   useEffect(() => {
-    ref.current?.querySelectorAll<HTMLAnchorElement>('a[href^="/"]').forEach((a) => {
+    ref.current?.querySelectorAll<HTMLAnchorElement>('a[href^="/"]:not([data-nz-link])').forEach((a) => {
+      a.dataset.nzLink = "1";
       const href = a.getAttribute("href") || "";
       if (href.startsWith(NOVIZ_PDF_PATH)) {
         a.href = pdfRoute + href.slice(NOVIZ_PDF_PATH.length);
@@ -165,7 +169,7 @@ export function NovizAnswer(props: {
         a.rel = "noopener";
       } else a.remove();
     });
-  }, [themed, erpBaseUrl, pdfRoute, documentPdfRoute]);
+  });
 
   // Clicks inside the result: "Show me more", record IDs and next steps.
   function onClick(e: React.MouseEvent) {
