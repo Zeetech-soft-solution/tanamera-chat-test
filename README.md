@@ -6,30 +6,20 @@ Router, same request as their agent routes: `POST { message, conversationId }`).
 
 ## What goes into your chat
 
-One folder, four files. Copy the folder `app/api/agents/red/noviz/` into your Next.js app
-(next to your other agents in `app/api/agents/red/`):
-
 | File | What it is | You change |
 |---|---|---|
-| `route.ts` | **Every Noviz AI route in one file**, one commented section each: chat, stream, show more, menu, report PDF, document PDF; plus the gateway call (the tenant key and the user's ERPNext key never reach the browser) | only `currentNovizUser()` at the bottom |
-| `Noviz.tsx` | Everything the browser needs: `readNovizEvents()` (reads the stream), `<NovizSteps>` ("Working… 3.1s", then "Worked 9.4s · 5 steps ▾"), `<NovizAnswer>` (tables, cards, charts; record IDs and next steps ask their follow-up) | nothing |
-| `noviz.css` | Results and steps in your dark style | the colours, to your theme |
-| `noviz-chat.css` | Noviz AI's result styles | never (same copy as every Noviz app) |
-
-Only `route.ts` becomes a URL; Next.js leaves the other files in the folder alone.
-
-The routes `route.ts` answers (`?route=` picks one; none is the chat):
-
-| Route | What it does |
-|---|---|
-| `POST /api/agents/red/noviz` | Chat: `{ message, conversationId }` → an assistant message in your message shape, plus `html` |
-| `POST /api/agents/red/noviz?route=stream` | The same, as a stream: the steps while Noviz AI works, then the answer (see "Steps while it works") |
-| `POST /api/agents/red/noviz?route=next-page` | "Show me more" under a result: `{ tool, args, conversationId }` |
-| `GET /api/agents/red/noviz?route=menu` | The + menu items (Approvals, Mail) |
-| `GET /api/agents/red/noviz?route=pdf&spec=` | "Download PDF" under an answer (the gateway builds it from your ERPNext) |
-| `GET /api/agents/red/noviz?route=document-pdf&doctype=&name=` | "Download PDF" of one document (a quotation, an invoice): ERPNext's own print |
-
-`app/page.tsx` is the test chat: a full working page that uses all of it.
+| `lib/noviz/gateway.ts` | Calls the gateway from your server (the tenant key and the user's ERPNext key never reach the browser); continues long answers | nothing |
+| `app/api/agents/red/noviz/route.ts` | Noviz AI as one of your agents: `POST { message, conversationId }` → an assistant message in your message shape, plus `html` | nothing |
+| `app/api/agents/red/noviz/stream/route.ts` | The same agent answered as a stream: the steps while Noviz AI works, then the answer (see "Steps while it works") | nothing |
+| `components/noviz/NovizSteps.tsx` + `noviz-steps.css` | "Working… 3.1s" with the current step, then "Worked 9.4s · 5 steps ▾" above the reply | the colours, to your theme |
+| `app/api/agents/red/noviz/next-page/route.ts` | "Show me more" under a result | nothing |
+| `app/api/agents/red/noviz/menu/route.ts` | The + menu items (Approvals, Mail) | nothing |
+| `app/api/agents/red/noviz/pdf/route.ts` | "Download PDF" under an answer (the gateway builds it from your ERPNext) | nothing |
+| `app/api/agents/red/noviz/pdf/document/route.ts` | "Download PDF" of one document (a quotation, an invoice): ERPNext's own print, through the gateway | nothing |
+| `components/noviz/NovizAnswer.tsx` | Shows Noviz AI's tables, cards and charts under the message text; record IDs and next steps ask their follow-up | nothing |
+| `components/noviz/noviz-chat.css` | Noviz AI's result styles | never (same copy as every Noviz app) |
+| `components/noviz/noviz-answer.css` | Those results in your dark style | the colours, to your theme |
+| `lib/currentUser.ts` | **The one function you replace**: return the signed-in chat user and the ERPNext key you assigned to them | yes |
 
 You manage your users, sessions and ERPNext keys. `currentNovizUser()` returns them as
 variables; Noviz AI stores none of it:
@@ -56,7 +46,7 @@ NOVIZ_TENANT_KEY=tnt_...
 NEXT_PUBLIC_ERP_BASE_URL=https://your-erpnext   # other ERPNext links in results open there
 ```
 
-## The gateway call (in `route.ts`)
+## The gateway call (`lib/noviz/gateway.ts`)
 
 Server to server, every request:
 
@@ -100,8 +90,8 @@ data: {"conversationId":"c1","status":"final","turnId":"…","reply":"…","html
 - `answer`: exactly the `/v1/chat` answer. `error`: `{ error: { code, message } }`, last event.
 - Lines starting with `:` only keep the connection open; skip them.
 
-Your route passes the stream to the browser as it is (section 2 of `route.ts`); the page reads it
-with `fetch` + `response.body.getReader()` (`readNovizEvents` in `Noviz.tsx`) and shows
+Your route passes the stream to the browser as it is (`stream/route.ts`); the page reads it
+with `fetch` + `response.body.getReader()` (`readEvents` in `app/page.tsx`) and shows
 `<NovizSteps>`. Behind nginx, keep `proxy_buffering` off for this route (the responses
 carry `X-Accel-Buffering: no`).
 

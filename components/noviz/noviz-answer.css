@@ -1,0 +1,46 @@
+/*
+ * Noviz AI's results in your chat's dark style. noviz-chat.css (Noviz AI's
+ * own result styles) stays unchanged; only its colour variables and the table
+ * look are set here. Change the values to match your theme.
+ */
+.nz-root.nz-result {
+  --nz-ink: #e8e8e8;
+  --nz-ink-2: #c4c4c4;
+  --nz-muted: #9a9a9a;
+  --nz-line: #333;
+  --nz-line-strong: #4a4a4a;
+  --nz-surface: #2a2a2a;
+  --nz-soft: #3a2c2c;
+  --nz-brand: #ff8a85;
+  --nz-brand-hover: #ffa9a5;
+  --nz-brand-soft: #3a2c2c;
+  --nz-highlight: #4a4026;
+  --nz-shadow: none;
+  --ink: #e8e8e8;
+  --ink-secondary: #c4c4c4;
+  display: block;
+  height: auto;
+  margin-top: 10px;
+  padding: 0;
+  background: transparent;
+  color: var(--nz-ink);
+  overflow-x: auto;
+}
+
+/* Tables and cards as in your chat: tinted header row, normal-case bold
+   headings, thin row lines, no stripes, no outer frame. */
+.nz-root.nz-result .erp-agent-table-scroll,
+.nz-root.nz-result .erp-agent-card { border: 0; border-radius: 0; background: transparent; }
+.nz-root.nz-result .erp-agent-table th {
+  background: var(--nz-soft); color: var(--nz-ink); text-transform: none; letter-spacing: 0;
+  font-size: 13px; font-weight: 600; padding: 11px 12px;
+}
+.nz-root.nz-result .erp-agent-table td { padding: 11px 12px; border-bottom: 1px solid var(--nz-line); }
+.nz-root.nz-result .erp-agent-table tbody tr:last-child td { border-bottom: 1px solid var(--nz-line); }
+.nz-root.nz-result .erp-agent-table tbody tr:nth-child(even) td,
+.nz-root.nz-result .erp-agent-card-row:nth-child(even) { background: transparent; }
+.nz-root.nz-result .erp-agent-table tbody tr:hover td { background: #2f2f2f; }
+.nz-root.nz-result .erp-agent-card-row { padding: 11px 12px; border-top: 0; border-bottom: 1px solid var(--nz-line); }
+.nz-root.nz-result .erp-agent-card-label { color: var(--nz-muted); text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 400; }
+.nz-root.nz-result .erp-agent-card-value { font-size: 13px; }
+.nz-root.nz-result a { color: var(--nz-brand); }
