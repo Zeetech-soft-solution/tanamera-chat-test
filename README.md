@@ -4,6 +4,10 @@ A small Next.js chat that uses Noviz AI through the **Tanamera chat gateway**. I
 test site, and the template for adding Noviz AI to Tanamera's own chat (Next.js App
 Router, same request as their agent routes: `POST { message, conversationId }`).
 
+> **Want it in one folder?** [`noviz-sample-combined/`](noviz-sample-combined/) has the same integration
+> combined into four files (one route file, one component file, two stylesheets), with a
+> step-by-step guide in [`noviz-sample-combined/README.md`](noviz-sample-combined/README.md).
+
 ## What goes into your chat
 
 | File | What it is | You change |
