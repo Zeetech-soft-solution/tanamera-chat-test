@@ -4,7 +4,7 @@
  * Noviz AI in your chat page: everything the browser needs, in ONE file
  * ============================================================================
  *
- *   1. readNovizEvents()  reads the stream from POST /api/agents/red/noviz/stream
+ *   1. readNovizEvents()  reads the stream from POST /api/agents/red/noviz?route=stream
  *   2. <NovizSteps>       "Working… 3.1s", then "Worked 9.4s · 5 steps ▾" above the reply
  *   3. <NovizAnswer>      Noviz AI's tables, cards and charts under the reply text
  *
@@ -19,8 +19,9 @@
  *                  erpBaseUrl={ERP_URL} />
  *   )}
  *
- * Styles: noviz-chat.css (Noviz AI's own, never change) and noviz.css (your
- * colours). A full working page that uses all three: app/page.tsx.
+ * This file sits in the same folder as route.ts, with its two stylesheets:
+ * noviz-chat.css (Noviz AI's own, never change) and noviz.css (your colours).
+ * A full working page that uses all three: app/page.tsx.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./noviz-chat.css";
@@ -35,7 +36,7 @@ import "./noviz.css";
 //   answer  { conversationId, turnId, reply, html, document }
 //   error   { error: { code, message } }
 //
-//   const res = await fetch("/api/agents/red/noviz/stream", { method: "POST", body: ... });
+//   const res = await fetch("/api/agents/red/noviz?route=stream", { method: "POST", body: ... });
 //   await readNovizEvents(res.body, (event, data) => { ... });
 
 export async function readNovizEvents(body: ReadableStream<Uint8Array>, onEvent: (event: string, data: any) => void) {
@@ -120,7 +121,7 @@ export function NovizSteps({ steps, startedAt, endedAt }: { steps: NovizStep[]; 
 // - html:             the answer's `html` (Noviz AI's own result for this user's question)
 // - onAsk:            a record ID or a suggested next step was clicked; send its
 //                     question as the next chat message (hidden: don't show it as the user's)
-// - onNextPage:       "Show me more"; POST /api/agents/red/noviz/next-page
+// - onNextPage:       "Show me more"; POST /api/agents/red/noviz?route=next-page
 // - pdfRoute:         your route that returns a report's PDF
 // - documentPdfRoute: your route that returns one document's PDF
 // - erpBaseUrl:       other ERPNext links in results open there (empty hides them)
@@ -129,6 +130,9 @@ export function NovizSteps({ steps, startedAt, endedAt }: { steps: NovizStep[]; 
 // string) and one document (doctype + name in the query string).
 const NOVIZ_PDF_PATH = "/api/method/noviz_ai.api.generate_report_pdf";
 const DOCUMENT_PDF_PATH = "/api/method/frappe.utils.print_format.download_pdf";
+
+// Your route plus the link's own query string ("?spec=..." or "?doctype=...&name=...").
+const withQuery = (route: string, query: string) => route + (route.includes("?") ? "&" : "?") + query.replace(/^\?/, "");
 
 // Charts carry a few fixed light colours; mapped to the dark style.
 const DARK: Record<string, string> = {
@@ -144,7 +148,7 @@ export function NovizAnswer(props: {
   documentPdfRoute?: string;
   erpBaseUrl?: string;
 }) {
-  const { html, onAsk, onNextPage, pdfRoute = "/api/agents/red/noviz/pdf", documentPdfRoute = "/api/agents/red/noviz/pdf/document", erpBaseUrl = "" } = props;
+  const { html, onAsk, onNextPage, pdfRoute = "/api/agents/red/noviz?route=pdf", documentPdfRoute = "/api/agents/red/noviz?route=document-pdf", erpBaseUrl = "" } = props;
   const ref = useRef<HTMLDivElement>(null);
   const themed = useMemo(() => html.replace(/#1B1E1C|#6B7268|#9BA098|#F5F6F3|#FFFFFF|#E3E4DF/gi, (c) => DARK[c.toUpperCase()]), [html]);
 
@@ -158,10 +162,10 @@ export function NovizAnswer(props: {
       a.dataset.nzLink = "1";
       const href = a.getAttribute("href") || "";
       if (href.startsWith(NOVIZ_PDF_PATH)) {
-        a.href = pdfRoute + href.slice(NOVIZ_PDF_PATH.length);
+        a.href = withQuery(pdfRoute, href.slice(NOVIZ_PDF_PATH.length));
         a.removeAttribute("target");
       } else if (href.startsWith(DOCUMENT_PDF_PATH)) {
-        a.href = documentPdfRoute + href.slice(DOCUMENT_PDF_PATH.length);
+        a.href = withQuery(documentPdfRoute, href.slice(DOCUMENT_PDF_PATH.length));
         a.removeAttribute("target");
       } else if (erpBaseUrl) {
         a.href = erpBaseUrl + a.getAttribute("href");

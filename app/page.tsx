@@ -2,16 +2,16 @@
 /**
  * The test chat: a full working page using Noviz AI. In Tanamera's chat, the
  * same calls come from your own chat page:
- *   - a question: POST /api/agents/red/noviz/stream { message, conversationId },
+ *   - a question: POST /api/agents/red/noviz?route=stream { message, conversationId },
  *     read with readNovizEvents(); <NovizSteps> while it works
  *   - <NovizAnswer> under each assistant message that has `html`
- *   - "Show me more": POST /api/agents/red/noviz/next-page
- *   - the + menu: GET /api/agents/red/noviz/menu
+ *   - "Show me more": POST /api/agents/red/noviz?route=next-page
+ *   - the + menu: GET /api/agents/red/noviz?route=menu
  */
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { NovizAnswer, NovizStep, NovizSteps, readNovizEvents } from "@/components/noviz/Noviz";
+import { NovizAnswer, NovizStep, NovizSteps, readNovizEvents } from "@/app/api/agents/red/noviz/Noviz";
 
 type Message = {
   id: string; role: "user" | "assistant"; content: string; html?: string; error?: boolean; pending?: boolean;
@@ -35,7 +35,7 @@ export default function ChatTest() {
   const log = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/agents/red/noviz/menu").then((r) => r.json()).then((d) => setMenu(d.items || [])).catch(() => {});
+    fetch("/api/agents/red/noviz?route=menu").then((r) => r.json()).then((d) => setMenu(d.items || [])).catch(() => {});
   }, []);
   useEffect(() => {
     log.current?.scrollTo({ top: log.current.scrollHeight });
@@ -67,7 +67,7 @@ export default function ChatTest() {
     const update = (change: (m: Message) => Message) => setMessages((all) => all.map((x) => (x.id === id ? change(x) : x)));
     setMessages((m) => [...m, ...(hidden ? [] : [{ id: crypto.randomUUID(), role: "user" as const, content: text }]), { id, role: "assistant", content: "", pending: true, steps: [], startedAt }]);
     try {
-      const res = await fetch("/api/agents/red/noviz/stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text, conversationId }) });
+      const res = await fetch("/api/agents/red/noviz?route=stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text, conversationId }) });
       if (!res.ok || !res.body) throw new Error((await res.json().catch(() => ({}))).error || `Error ${res.status}`);
       let answered = false;
       await readNovizEvents(res.body, (event, data) => {
@@ -88,7 +88,7 @@ export default function ChatTest() {
     }
     setBusy(false);
   }
-  const nextPage = (tool: string, args: Record<string, unknown>) => run("/api/agents/red/noviz/next-page", { tool, args, conversationId }, null);
+  const nextPage = (tool: string, args: Record<string, unknown>) => run("/api/agents/red/noviz?route=next-page", { tool, args, conversationId }, null);
 
   return (
     <div className="chat">

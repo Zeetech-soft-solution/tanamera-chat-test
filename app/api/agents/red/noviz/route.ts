@@ -5,14 +5,14 @@
  *
  * Noviz AI is one of your chat's agents, next to /api/agents/red/member-segments,
  * business-analysis and it-assistance. Copy this file into your Next.js app at
- * app/api/agents/red/noviz/[[...action]]/route.ts and it answers all of these:
+ * app/api/agents/red/noviz/route.ts and it answers all of these:
  *
- *   POST /api/agents/red/noviz               1. Chat: { message, conversationId } -> the answer
- *   POST /api/agents/red/noviz/stream        2. Stream: the steps while it works, then the answer
- *   POST /api/agents/red/noviz/next-page     3. Show more: { tool, args, conversationId } -> next page
- *   GET  /api/agents/red/noviz/menu          4. Menu: the + menu items (Approvals, Mail, ...)
- *   GET  /api/agents/red/noviz/pdf           5. Report PDF: ?spec=<the answer's report spec>
- *   GET  /api/agents/red/noviz/pdf/document  6. Document PDF: ?doctype=&name=[&format=]
+ *   POST /api/agents/red/noviz                       1. Chat: { message, conversationId } -> the answer
+ *   POST /api/agents/red/noviz?route=stream          2. Stream: the steps while it works, then the answer
+ *   POST /api/agents/red/noviz?route=next-page       3. Show more: { tool, args, conversationId } -> next page
+ *   GET  /api/agents/red/noviz?route=menu            4. Menu: the + menu items (Approvals, Mail, ...)
+ *   GET  /api/agents/red/noviz?route=pdf             5. Report PDF: &spec=<the answer's report spec>
+ *   GET  /api/agents/red/noviz?route=document-pdf    6. Document PDF: &doctype=&name=[&format=]
  *
  * Server only: the Noviz AI tenant key and the user's ERPNext key never reach
  * the browser. You manage your users, sessions and ERPNext keys; Noviz AI
@@ -32,24 +32,24 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300; // a long answer continues on the server
 
 // ----------------------------------------------------------------------------
-// Routing: which of the six routes was called
+// Routing: ?route= says which of the six routes was called (none = chat)
 // ----------------------------------------------------------------------------
 
-type Params = { params: Promise<{ action?: string[] }> };
+const routeOf = (request: Request) => new URL(request.url).searchParams.get("route") || "";
 
-export async function POST(request: Request, { params }: Params) {
-  const action = ((await params).action || []).join("/");
-  if (action === "") return chat(request);
-  if (action === "stream") return stream(request);
-  if (action === "next-page") return nextPage(request);
+export async function POST(request: Request) {
+  const route = routeOf(request);
+  if (route === "") return chat(request);
+  if (route === "stream") return stream(request);
+  if (route === "next-page") return nextPage(request);
   return NextResponse.json({ error: "Not found" }, { status: 404 });
 }
 
-export async function GET(request: Request, { params }: Params) {
-  const action = ((await params).action || []).join("/");
-  if (action === "menu") return menu();
-  if (action === "pdf") return reportPdf(request);
-  if (action === "pdf/document") return documentPdf(request);
+export async function GET(request: Request) {
+  const route = routeOf(request);
+  if (route === "menu") return menu();
+  if (route === "pdf") return reportPdf(request);
+  if (route === "document-pdf") return documentPdf(request);
   return NextResponse.json({ error: "Not found" }, { status: 404 });
 }
 
@@ -71,12 +71,12 @@ async function chat(request: Request) {
 }
 
 // ----------------------------------------------------------------------------
-// 2. Stream: POST { message, conversationId } -> text/event-stream
+// 2. Stream: POST ?route=stream { message, conversationId } -> text/event-stream
 //    The gateway's events pass through as they are:
 //      step    { id, label, status: "running" | "done" | "error", ms }  (while it works)
 //      answer  the same answer as route 1 (conversationId, turnId, reply, html, document)
 //      error   { error: { code, message } }
-//    The browser reads them with readNovizEvents() in components/noviz/Noviz.tsx.
+//    The browser reads them with readNovizEvents() in Noviz.tsx (this folder).
 //    Behind nginx, keep proxy_buffering off for this route.
 // ----------------------------------------------------------------------------
 
@@ -99,7 +99,7 @@ async function stream(request: Request) {
 }
 
 // ----------------------------------------------------------------------------
-// 3. Show more: POST { tool, args, conversationId }
+// 3. Show more: POST ?route=next-page { tool, args, conversationId }
 //    "Show me more" under a result: the next page, without asking the AI again.
 // ----------------------------------------------------------------------------
 
@@ -115,7 +115,7 @@ async function nextPage(request: Request) {
 }
 
 // ----------------------------------------------------------------------------
-// 4. Menu: GET -> { items: [{ id, label, prompt?, empty? }] }
+// 4. Menu: GET ?route=menu -> { items: [{ id, label, prompt?, empty? }] }
 //    The + menu items Noviz AI offers for this ERP (Approvals, Mail, ...).
 //    If the gateway cannot answer, the menu is simply empty.
 // ----------------------------------------------------------------------------
@@ -132,7 +132,7 @@ async function menu() {
 }
 
 // ----------------------------------------------------------------------------
-// 5. Report PDF: GET ?spec=<the answer's report spec>
+// 5. Report PDF: GET ?route=pdf&spec=<the answer's report spec>
 //    "Download PDF" under an answer; the gateway builds it from your ERPNext.
 // ----------------------------------------------------------------------------
 
@@ -147,7 +147,7 @@ async function reportPdf(request: Request) {
 }
 
 // ----------------------------------------------------------------------------
-// 6. Document PDF: GET ?doctype=&name=[&format=]
+// 6. Document PDF: GET ?route=document-pdf&doctype=&name=[&format=]
 //    "Download PDF" of one document (a quotation, an invoice): ERPNext's own
 //    print, as the user.
 // ----------------------------------------------------------------------------

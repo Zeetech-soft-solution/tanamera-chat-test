@@ -6,25 +6,28 @@ Router, same request as their agent routes: `POST { message, conversationId }`).
 
 ## What goes into your chat
 
-Four files. Copy them into your Next.js app at the same paths:
+One folder, four files. Copy the folder `app/api/agents/red/noviz/` into your Next.js app
+(next to your other agents in `app/api/agents/red/`):
 
 | File | What it is | You change |
 |---|---|---|
-| `app/api/agents/red/noviz/[[...action]]/route.ts` | **Every Noviz AI route in one file**, one commented section each: chat, stream, show more, menu, report PDF, document PDF; plus the gateway call (the tenant key and the user's ERPNext key never reach the browser) | only `currentNovizUser()` at the bottom |
-| `components/noviz/Noviz.tsx` | Everything the browser needs: `readNovizEvents()` (reads the stream), `<NovizSteps>` ("Working… 3.1s", then "Worked 9.4s · 5 steps ▾"), `<NovizAnswer>` (tables, cards, charts; record IDs and next steps ask their follow-up) | nothing |
-| `components/noviz/noviz.css` | Results and steps in your dark style | the colours, to your theme |
-| `components/noviz/noviz-chat.css` | Noviz AI's result styles | never (same copy as every Noviz app) |
+| `route.ts` | **Every Noviz AI route in one file**, one commented section each: chat, stream, show more, menu, report PDF, document PDF; plus the gateway call (the tenant key and the user's ERPNext key never reach the browser) | only `currentNovizUser()` at the bottom |
+| `Noviz.tsx` | Everything the browser needs: `readNovizEvents()` (reads the stream), `<NovizSteps>` ("Working… 3.1s", then "Worked 9.4s · 5 steps ▾"), `<NovizAnswer>` (tables, cards, charts; record IDs and next steps ask their follow-up) | nothing |
+| `noviz.css` | Results and steps in your dark style | the colours, to your theme |
+| `noviz-chat.css` | Noviz AI's result styles | never (same copy as every Noviz app) |
 
-The routes the one route file answers (same URLs as before):
+Only `route.ts` becomes a URL; Next.js leaves the other files in the folder alone.
+
+The routes `route.ts` answers (`?route=` picks one; none is the chat):
 
 | Route | What it does |
 |---|---|
 | `POST /api/agents/red/noviz` | Chat: `{ message, conversationId }` → an assistant message in your message shape, plus `html` |
-| `POST /api/agents/red/noviz/stream` | The same, as a stream: the steps while Noviz AI works, then the answer (see "Steps while it works") |
-| `POST /api/agents/red/noviz/next-page` | "Show me more" under a result: `{ tool, args, conversationId }` |
-| `GET /api/agents/red/noviz/menu` | The + menu items (Approvals, Mail) |
-| `GET /api/agents/red/noviz/pdf?spec=` | "Download PDF" under an answer (the gateway builds it from your ERPNext) |
-| `GET /api/agents/red/noviz/pdf/document?doctype=&name=` | "Download PDF" of one document (a quotation, an invoice): ERPNext's own print |
+| `POST /api/agents/red/noviz?route=stream` | The same, as a stream: the steps while Noviz AI works, then the answer (see "Steps while it works") |
+| `POST /api/agents/red/noviz?route=next-page` | "Show me more" under a result: `{ tool, args, conversationId }` |
+| `GET /api/agents/red/noviz?route=menu` | The + menu items (Approvals, Mail) |
+| `GET /api/agents/red/noviz?route=pdf&spec=` | "Download PDF" under an answer (the gateway builds it from your ERPNext) |
+| `GET /api/agents/red/noviz?route=document-pdf&doctype=&name=` | "Download PDF" of one document (a quotation, an invoice): ERPNext's own print |
 
 `app/page.tsx` is the test chat: a full working page that uses all of it.
 
@@ -98,7 +101,7 @@ data: {"conversationId":"c1","status":"final","turnId":"…","reply":"…","html
 - Lines starting with `:` only keep the connection open; skip them.
 
 Your route passes the stream to the browser as it is (section 2 of `route.ts`); the page reads it
-with `fetch` + `response.body.getReader()` (`readNovizEvents` in `components/noviz/Noviz.tsx`) and shows
+with `fetch` + `response.body.getReader()` (`readNovizEvents` in `Noviz.tsx`) and shows
 `<NovizSteps>`. Behind nginx, keep `proxy_buffering` off for this route (the responses
 carry `X-Accel-Buffering: no`).
 
