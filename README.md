@@ -4,9 +4,22 @@ A small Next.js chat that uses Noviz AI through the **Tanamera chat gateway**. I
 test site, and the template for adding Noviz AI to Tanamera's own chat (Next.js App
 Router, same request as their agent routes: `POST { message, conversationId }`).
 
-> **Want it in one folder?** [`noviz-sample-combined/`](noviz-sample-combined/) has the same integration
-> combined into four files (one route file, one component file, two stylesheets), with a
-> step-by-step guide in [`noviz-sample-combined/README.md`](noviz-sample-combined/README.md).
+## Combined files: check the `noviz-sample-combined/` folder
+
+To view the whole integration combined in one folder, open
+**[`noviz-sample-combined/`](noviz-sample-combined/)**. It does the same as this project in
+four files:
+
+| File | What it is |
+|---|---|
+| [`route.ts`](noviz-sample-combined/route.ts) | Every route in one file (chat, stream, show more, menu, report PDF, document PDF), one commented section each |
+| [`Noviz.tsx`](noviz-sample-combined/Noviz.tsx) | Everything the browser needs: stream reader, steps, answer |
+| [`noviz.css`](noviz-sample-combined/noviz.css) | Your colours |
+| [`noviz-chat.css`](noviz-sample-combined/noviz-chat.css) | Noviz AI's shared result styles |
+
+Step-by-step guide: **[`noviz-sample-combined/README.md`](noviz-sample-combined/README.md)**.
+
+The rest of this README describes the project with separate route folders (the test site).
 
 ## What goes into your chat
 
