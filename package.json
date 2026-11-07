@@ -2,7 +2,7 @@
   "name": "tanamera-chat-test",
   "version": "0.1.0",
   "private": true,
-  "description": "Tanamera chat test: a Next.js chat using Noviz AI through the Tanamera chat gateway. The pieces under lib/noviz, app/api/agents/red/noviz and components/noviz are what goes into Tanamera's own chat.",
+  "description": "Tanamera chat test: a Next.js chat using Noviz AI through the Tanamera chat gateway. What goes into Tanamera's own chat: app/api/agents/red/noviz/[[...action]]/route.ts and components/noviz.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -15,7 +15,6 @@
     "react-dom": "19.1.1",
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
-    "server-only": "0.0.1",
     "undici": "6.24.1"
   },
   "devDependencies": {
