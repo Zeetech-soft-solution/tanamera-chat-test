@@ -1,9 +1,14 @@
 "use client";
 /**
  * The test chat. In Tanamera's chat, the same calls come from your own chat
- * page: POST /api/agents/red/noviz/stream { message, conversationId } (read as
- * a stream: <NovizSteps> while it works), and <NovizAnswer> under each
+ * page: POST /api/agents/red/noviz/stream { message, conversationId, company }
+ * (read as a stream: <NovizSteps> while it works), and <NovizAnswer> under each
  * assistant message that has `html`.
+ *
+ * Company: GET /api/agents/red/noviz/companies gives the companies the user may
+ * work in and the one to start in. The header shows them as a selection; the
+ * selected one goes with every question and next page, so every answer is for
+ * that company. One company at a time. Changing it starts a new chat.
  */
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -41,6 +46,8 @@ async function readEvents(body: ReadableStream<Uint8Array>, onEvent: (event: str
 }
 
 const ERP_BASE_URL = process.env.NEXT_PUBLIC_ERP_BASE_URL || "";
+// Where this browser remembers the company chosen last time.
+const COMPANY_KEY = "noviz_company";
 
 // The reply text is markdown (bold, lists, tables): render it with a markdown library.
 function Markdown({ text }: { text: string }) {
@@ -54,11 +61,28 @@ export default function ChatTest() {
   const [busy, setBusy] = useState(false);
   const [menu, setMenu] = useState<{ id: string; label: string; prompt?: string; empty?: string }[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  // The company the chat works in, from the companies this user may work in.
+  const [companies, setCompanies] = useState<string[]>([]);
+  const [company, setCompany] = useState<string | undefined>();
   const log = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch("/api/agents/red/noviz/menu").then((r) => r.json()).then((d) => setMenu(d.items || [])).catch(() => {});
+    fetch("/api/agents/red/noviz/companies").then((r) => r.json()).then((d) => {
+      const list: string[] = Array.isArray(d.companies) ? d.companies : [];
+      setCompanies(list);
+      // The one chosen last time on this browser, when still allowed; else the user's default.
+      const remembered = window.localStorage.getItem(COMPANY_KEY);
+      setCompany(remembered && list.includes(remembered) ? remembered : d.selected || undefined);
+    }).catch(() => {});
   }, []);
+  function chooseCompany(name: string) {
+    setCompany(name);
+    window.localStorage.setItem(COMPANY_KEY, name);
+    // The earlier answers were for the other company: a new chat.
+    setMessages([]);
+    setConversationId(undefined);
+  }
   useEffect(() => {
     log.current?.scrollTo({ top: log.current.scrollHeight });
   }, [messages]);
@@ -89,7 +113,7 @@ export default function ChatTest() {
     const update = (change: (m: Message) => Message) => setMessages((all) => all.map((x) => (x.id === id ? change(x) : x)));
     setMessages((m) => [...m, ...(hidden ? [] : [{ id: crypto.randomUUID(), role: "user" as const, content: text }]), { id, role: "assistant", content: "", pending: true, steps: [], startedAt }]);
     try {
-      const res = await fetch("/api/agents/red/noviz/stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text, conversationId }) });
+      const res = await fetch("/api/agents/red/noviz/stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text, conversationId, company }) });
       if (!res.ok || !res.body) throw new Error((await res.json().catch(() => ({}))).error || `Error ${res.status}`);
       let answered = false;
       await readEvents(res.body, (event, data) => {
@@ -110,7 +134,7 @@ export default function ChatTest() {
     }
     setBusy(false);
   }
-  const nextPage = (tool: string, args: Record<string, unknown>) => run("/api/agents/red/noviz/next-page", { tool, args, conversationId }, null);
+  const nextPage = (tool: string, args: Record<string, unknown>) => run("/api/agents/red/noviz/next-page", { tool, args, conversationId, company }, null);
 
   return (
     <div className="chat">
@@ -119,6 +143,11 @@ export default function ChatTest() {
         <div>
           <b>ERP Assistant</b>
           <span className="badge">Noviz AI</span>
+          {companies.length > 1 ? (
+            <select className="company" aria-label="Company" value={company || ""} disabled={busy} onChange={(e) => chooseCompany(e.target.value)}>
+              {companies.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+          ) : company ? <span className="company">{company}</span> : null}
         </div>
         <button className="new" onClick={() => { setMessages([]); setConversationId(undefined); }}>＋ New chat</button>
       </header>

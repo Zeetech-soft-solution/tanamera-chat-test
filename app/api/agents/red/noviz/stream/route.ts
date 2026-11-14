@@ -17,11 +17,11 @@ export async function POST(request: Request) {
   const user = await currentNovizUser();
   if (!user) return NextResponse.json({ error: "Not signed in, or no ERPNext access set up" }, { status: 401 });
 
-  const { message, conversationId } = await request.json();
+  const { message, conversationId, company } = await request.json();
   if (typeof message !== "string" || !message.trim()) return NextResponse.json({ error: "message is required" }, { status: 400 });
 
   try {
-    const upstream = await streamNoviz(user, message.trim(), conversationId);
+    const upstream = await streamNoviz(user, message.trim(), conversationId, typeof company === "string" ? company : undefined);
     return new Response(upstream.body as unknown as ReadableStream, {
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",

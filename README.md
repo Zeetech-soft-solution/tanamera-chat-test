@@ -31,6 +31,7 @@ The rest of this README describes the project with separate route folders (the t
 | `components/noviz/NovizSteps.tsx` + `noviz-steps.css` | "Working… 3.1s" with the current step, then "Worked 9.4s · 5 steps ▾" above the reply | the colours, to your theme |
 | `app/api/agents/red/noviz/next-page/route.ts` | "Show me more" under a result | nothing |
 | `app/api/agents/red/noviz/menu/route.ts` | The + menu items (Approvals, Mail) | nothing |
+| `app/api/agents/red/noviz/companies/route.ts` | The company selection: the companies the user may work in and the one to start in (see "Company") | nothing |
 | `app/api/agents/red/noviz/pdf/route.ts` | "Download PDF" under an answer (the gateway builds it from your ERPNext) | nothing |
 | `app/api/agents/red/noviz/pdf/document/route.ts` | "Download PDF" of one document (a quotation, an invoice): ERPNext's own print, through the gateway | nothing |
 | `components/noviz/NovizAnswer.tsx` | Shows Noviz AI's tables, cards and charts under the message text; record IDs and next steps ask their follow-up | nothing |
@@ -74,16 +75,45 @@ X-Chat-User: <your chat user id>
 X-ERP-Authorization: token <api_key>:<api_secret>
 Content-Type: application/json
 
-{ "message": "How many open sales orders?", "conversationId": "c1", "can_continue": true }
+{ "message": "How many open sales orders?", "conversationId": "c1", "company": "Tanamera Kopi Indonesia", "can_continue": true }
 ```
 
 Answer: `{ conversationId, status: "final", turnId, reply, html, document }` (`reply` is
 markdown, `html` goes to `NovizAnswer`), or `{ status: "working", turnId }`: call
 `/v1/chat/continue` until final. Errors: `{ error: { code, message } }`.
 
+## Company
+
+A user works in one company at a time. The chat shows a selection of the companies that
+user may work in, and every answer is for the selected one.
+
+```
+GET https://tanamera-gateway.noviz.in/v1/chat/companies      (same three headers)
+
+{ "companies": ["Tanamera Holding", "Tanamera Kopi Indonesia", "Tanamera Mitra Sentosa"],
+  "selected": "Tanamera Kopi Indonesia" }
+```
+
+- `companies`: the companies ERPNext lets this user see (its own permissions), by name.
+  One entry: show it as plain text, no selection needed.
+- `selected`: the company the chat starts in (the site's default company when the user
+  may work in it, else the first of `companies`).
+- Send the selected company as `"company": "<name>"` in the body of `/v1/chat`,
+  `/v1/chat/stream` and `/v1/chat/next-page`, and as the header `X-Company: <name>`
+  (URL-encoded) with `/v1/chat/scan`.
+- Lists, totals, reports and PDFs are then of that company only, and a new document is
+  created in it. Records shared by every company (customers, items) are not narrowed.
+- Left out, or a company the user may not work in: the answer is for `selected`.
+- There is no "all companies". When the user changes the company, start a new
+  conversation (a new `conversationId`): the earlier answers were for the other company.
+
+In the template: `novizCompanies()` in `lib/noviz/gateway.ts`, the route
+`app/api/agents/red/noviz/companies/route.ts`, and the selection in the header of
+`app/page.tsx` (it remembers the last choice in the browser).
+
 ## Steps while it works (stream)
 
-`POST /v1/chat/stream` takes the same headers and `{ message, conversationId }` and answers
+`POST /v1/chat/stream` takes the same headers and `{ message, conversationId, company }` and answers
 `text/event-stream` (Server-Sent Events). The stream stays open until the answer is final
 (no `working` / continue):
 

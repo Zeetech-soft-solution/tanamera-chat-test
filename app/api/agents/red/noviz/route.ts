@@ -1,7 +1,7 @@
 /**
  * Noviz AI as one of your chat's agents, next to /api/agents/red/member-segments,
  * business-analysis and it-assistance. Same request your chat already sends:
- *   POST { message, conversationId }
+ *   POST { message, conversationId, company }   (company: the one selected in the chat)
  * Answers with an assistant message in your chat's own message shape, plus
  * Noviz AI's rendered result in `html`.
  */
@@ -16,11 +16,11 @@ export async function POST(request: Request) {
   const user = await currentNovizUser();
   if (!user) return NextResponse.json({ error: "Not signed in, or no ERPNext access set up" }, { status: 401 });
 
-  const { message, conversationId } = await request.json();
+  const { message, conversationId, company } = await request.json();
   if (typeof message !== "string" || !message.trim()) return NextResponse.json({ error: "message is required" }, { status: 400 });
 
   try {
-    const answer = await askNoviz(user, message.trim(), conversationId);
+    const answer = await askNoviz(user, message.trim(), conversationId, typeof company === "string" ? company : undefined);
     return NextResponse.json({
       conversationId: answer.conversationId,
       message: {

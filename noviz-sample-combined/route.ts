@@ -7,12 +7,18 @@
  * business-analysis and it-assistance. Copy this file into your Next.js app at
  * app/api/agents/red/noviz/route.ts and it answers all of these:
  *
- *   POST /api/agents/red/noviz                       1. Chat: { message, conversationId } -> the answer
+ *   POST /api/agents/red/noviz                       1. Chat: { message, conversationId, company } -> the answer
  *   POST /api/agents/red/noviz?route=stream          2. Stream: the steps while it works, then the answer
- *   POST /api/agents/red/noviz?route=next-page       3. Show more: { tool, args, conversationId } -> next page
+ *   POST /api/agents/red/noviz?route=next-page       3. Show more: { tool, args, conversationId, company } -> next page
  *   GET  /api/agents/red/noviz?route=menu            4. Menu: the + menu items (Approvals, Mail, ...)
  *   GET  /api/agents/red/noviz?route=pdf             5. Report PDF: &spec=<the answer's report spec>
  *   GET  /api/agents/red/noviz?route=document-pdf    6. Document PDF: &doctype=&name=[&format=]
+ *   GET  /api/agents/red/noviz?route=companies       7. Company selection: { companies, selected }
+ *
+ * Company: a user works in one company at a time. Show route 7's companies as
+ * a selection in your chat and send the selected one as `company` with routes
+ * 1, 2 and 3; every answer is then for that company. When the user changes it,
+ * start a new conversation.
  *
  * Server only: the Noviz AI tenant key and the user's ERPNext key never reach
  * the browser. You manage your users, sessions and ERPNext keys; Noviz AI
@@ -50,21 +56,22 @@ export async function GET(request: Request) {
   if (route === "menu") return menu();
   if (route === "pdf") return reportPdf(request);
   if (route === "document-pdf") return documentPdf(request);
+  if (route === "companies") return companies();
   return NextResponse.json({ error: "Not found" }, { status: 404 });
 }
 
 // ----------------------------------------------------------------------------
-// 1. Chat: POST { message, conversationId }
+// 1. Chat: POST { message, conversationId, company }
 //    Answers with an assistant message in your chat's own message shape, plus
 //    Noviz AI's rendered result (tables, cards, charts) in `html`.
 // ----------------------------------------------------------------------------
 
 async function chat(request: Request) {
   return withUser(async (user) => {
-    const { message, conversationId } = await request.json();
+    const { message, conversationId, company } = await request.json();
     if (typeof message !== "string" || !message.trim()) return NextResponse.json({ error: "message is required" }, { status: 400 });
 
-    let answer = await gateway(user, "POST", "/v1/chat", { message: message.trim(), conversationId, can_continue: true });
+    let answer = await gateway(user, "POST", "/v1/chat", { message: message.trim(), conversationId, company, can_continue: true });
     answer = await untilFinal(user, answer.conversationId, answer);
     return NextResponse.json({ conversationId: answer.conversationId, message: { ...assistantMessage(answer), activities: [], references: [] } });
   });
@@ -82,10 +89,10 @@ async function chat(request: Request) {
 
 async function stream(request: Request) {
   return withUser(async (user) => {
-    const { message, conversationId } = await request.json();
+    const { message, conversationId, company } = await request.json();
     if (typeof message !== "string" || !message.trim()) return NextResponse.json({ error: "message is required" }, { status: 400 });
 
-    const upstream = await gatewayRaw(user, "POST", "/v1/chat/stream", { message: message.trim(), conversationId });
+    const upstream = await gatewayRaw(user, "POST", "/v1/chat/stream", { message: message.trim(), conversationId, company });
     return new Response(upstream.body as unknown as ReadableStream, {
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",
@@ -105,10 +112,10 @@ async function stream(request: Request) {
 
 async function nextPage(request: Request) {
   return withUser(async (user) => {
-    const { tool, args, conversationId } = await request.json();
+    const { tool, args, conversationId, company } = await request.json();
     if (typeof tool !== "string" || !tool) return NextResponse.json({ error: "tool is required" }, { status: 400 });
 
-    let answer = await gateway(user, "POST", "/v1/chat/next-page", { tool, args: args || {}, conversationId, can_continue: true });
+    let answer = await gateway(user, "POST", "/v1/chat/next-page", { tool, args: args || {}, conversationId, company, can_continue: true });
     answer = await untilFinal(user, conversationId, answer);
     return NextResponse.json({ message: assistantMessage(answer) });
   });
@@ -127,6 +134,23 @@ async function menu() {
     return NextResponse.json({ items: (await gateway(user, "GET", "/v1/chat/menu")).items || [] });
   } catch (e) {
     if (e instanceof NovizError) return NextResponse.json({ items: [] });
+    throw e;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 7. Company selection: GET ?route=companies -> { companies, selected }
+//    The companies this user may work in (ERPNext's own permissions) and the
+//    one the chat starts in. One entry: show it as text, no selection needed.
+// ----------------------------------------------------------------------------
+
+async function companies() {
+  const user = await currentNovizUser();
+  if (!user) return notSignedIn();
+  try {
+    return NextResponse.json(await gateway(user, "GET", "/v1/chat/companies"));
+  } catch (e) {
+    if (e instanceof NovizError) return NextResponse.json({ companies: [], selected: "" });
     throw e;
   }
 }

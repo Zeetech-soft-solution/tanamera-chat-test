@@ -81,9 +81,19 @@ async function untilFinal(user: NovizUser, conversationId: string | undefined, a
   return answer;
 }
 
-/** Your chat's own request: { message, conversationId }. */
-export async function askNoviz(user: NovizUser, message: string, conversationId?: string): Promise<NovizAnswer> {
-  const answer = await call(user, "/v1/chat", { method: "POST", body: { message, conversationId, can_continue: true } });
+/**
+ * The chat's company selection: the companies this user may work in (ERPNext's
+ * own permissions) and the one the chat starts in. Show them as a selection in
+ * your chat; send the selected one as `company` with every question and next
+ * page. Every answer is then for that company. One company at a time.
+ */
+export async function novizCompanies(user: NovizUser): Promise<{ companies: string[]; selected: string }> {
+  return call(user, "/v1/chat/companies", { method: "GET" });
+}
+
+/** Your chat's own request: { message, conversationId }, with the selected company. */
+export async function askNoviz(user: NovizUser, message: string, conversationId?: string, company?: string): Promise<NovizAnswer> {
+  const answer = await call(user, "/v1/chat", { method: "POST", body: { message, conversationId, can_continue: true, company } });
   return untilFinal(user, answer.conversationId, answer);
 }
 
@@ -94,7 +104,7 @@ export async function askNoviz(user: NovizUser, message: string, conversationId?
  * ({ error: { code, message } }). Returns the gateway's response; its body is
  * the stream, passed on to the browser as it is.
  */
-export async function streamNoviz(user: NovizUser, message: string, conversationId?: string): Promise<GatewayResponse> {
+export async function streamNoviz(user: NovizUser, message: string, conversationId?: string, company?: string): Promise<GatewayResponse> {
   const response = await fetch(`${GATEWAY_URL}/v1/chat/stream`, {
     method: "POST",
     headers: {
@@ -103,7 +113,7 @@ export async function streamNoviz(user: NovizUser, message: string, conversation
       "X-ERP-Authorization": `token ${user.erpApiKey}:${user.erpApiSecret}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ message, conversationId }),
+    body: JSON.stringify({ message, conversationId, company }),
     dispatcher: connection,
   });
   keepWarm();
@@ -115,8 +125,8 @@ export async function streamNoviz(user: NovizUser, message: string, conversation
 }
 
 /** "Show me more" under a result: the next page, without asking the AI again. */
-export async function novizNextPage(user: NovizUser, tool: string, args: Record<string, unknown>, conversationId?: string): Promise<NovizAnswer> {
-  const answer = await call(user, "/v1/chat/next-page", { method: "POST", body: { tool, args, conversationId, can_continue: true } });
+export async function novizNextPage(user: NovizUser, tool: string, args: Record<string, unknown>, conversationId?: string, company?: string): Promise<NovizAnswer> {
+  const answer = await call(user, "/v1/chat/next-page", { method: "POST", body: { tool, args, conversationId, can_continue: true, company } });
   return untilFinal(user, conversationId, answer);
 }
 
