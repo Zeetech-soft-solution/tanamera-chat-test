@@ -2,8 +2,9 @@
  * Calls Noviz AI's chat gateway from your Next.js server. Server only: the
  * Noviz AI tenant key and the user's ERPNext key never reach the browser.
  *
- * You manage your users, their sessions and their ERPNext keys; pass them in
- * as a NovizUser. Noviz AI stores none of it. The chat session is yours too:
+ * You manage your users and their sessions; pass them in as a NovizUser. The
+ * user's ERPNext access is their ERPNext login session (novizLogin) or an API
+ * key you assigned them. Noviz AI stores none of it. The chat session is yours too:
  * pass your conversationId and Noviz AI keeps the conversation going.
  *
  * Settings (.env):
@@ -31,13 +32,58 @@ function keepWarm() {
   }, 45_000).unref();
 }
 
-/** Who is chatting, from your own session and your own key store. */
-export interface NovizUser {
+/** Who is chatting: your chat's user and their ERPNext access, one of the two. */
+export type NovizUser = {
   /** Your chat's user id. */
   chatUser: string;
-  /** The ERPNext API key and secret you assigned to this user. */
-  erpApiKey: string;
-  erpApiSecret: string;
+} & (
+  /** The session of the user's ERPNext login (novizLogin). */
+  | { erpSessionId: string }
+  /** Or the ERPNext API key and secret you assigned to this user. */
+  | { erpApiKey: string; erpApiSecret: string }
+);
+
+/** The headers that say who is asking. */
+function userHeaders(user: NovizUser): Record<string, string> {
+  return {
+    Authorization: `Bearer ${TENANT_KEY}`,
+    "X-Chat-User": user.chatUser,
+    ...("erpSessionId" in user
+      ? { "X-ERP-Session": user.erpSessionId }
+      : { "X-ERP-Authorization": `token ${user.erpApiKey}:${user.erpApiSecret}` }),
+  };
+}
+
+/** The user's ERPNext session, from their ERPNext user name and password. */
+export interface NovizSession {
+  sessionId: string;
+  user: string;
+  fullName: string;
+  /** When ERPNext ends the session (ISO time), or null. */
+  expiresAt: string | null;
+}
+
+/** Logs the user in to their ERPNext (through the gateway). ERPNext's own refusal on a wrong password. */
+export async function novizLogin(usr: string, pwd: string): Promise<NovizSession> {
+  const response = await fetch(`${GATEWAY_URL}/v1/auth/login`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${TENANT_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ usr, pwd }),
+    dispatcher: connection,
+  });
+  const json: any = await response.json().catch(() => ({}));
+  if (!response.ok) throw new NovizError(response.status, json.error?.code || "error", json.error?.message || `Noviz AI answered ${response.status}`);
+  return json;
+}
+
+/** Ends the user's ERPNext session. */
+export async function novizLogout(sessionId: string): Promise<void> {
+  const response = await fetch(`${GATEWAY_URL}/v1/auth/logout`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${TENANT_KEY}`, "X-ERP-Session": sessionId },
+    dispatcher: connection,
+  });
+  await response.arrayBuffer().catch(() => undefined);
 }
 
 export interface NovizAnswer {
@@ -58,12 +104,7 @@ export class NovizError extends Error {
 async function call(user: NovizUser, path: string, init: { method: "GET" | "POST"; body?: unknown }) {
   const response = await fetch(`${GATEWAY_URL}${path}`, {
     method: init.method,
-    headers: {
-      Authorization: `Bearer ${TENANT_KEY}`,
-      "X-Chat-User": user.chatUser,
-      "X-ERP-Authorization": `token ${user.erpApiKey}:${user.erpApiSecret}`,
-      ...(init.body ? { "Content-Type": "application/json" } : {}),
-    },
+    headers: { ...userHeaders(user), ...(init.body ? { "Content-Type": "application/json" } : {}) },
     body: init.body ? JSON.stringify(init.body) : undefined,
     dispatcher: connection,
   });
@@ -107,12 +148,7 @@ export async function askNoviz(user: NovizUser, message: string, conversationId?
 export async function streamNoviz(user: NovizUser, message: string, conversationId?: string, company?: string): Promise<GatewayResponse> {
   const response = await fetch(`${GATEWAY_URL}/v1/chat/stream`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${TENANT_KEY}`,
-      "X-Chat-User": user.chatUser,
-      "X-ERP-Authorization": `token ${user.erpApiKey}:${user.erpApiSecret}`,
-      "Content-Type": "application/json",
-    },
+    headers: { ...userHeaders(user), "Content-Type": "application/json" },
     body: JSON.stringify({ message, conversationId, company }),
     dispatcher: connection,
   });
@@ -133,11 +169,7 @@ export async function novizNextPage(user: NovizUser, tool: string, args: Record<
 /** "Download PDF" under an answer: the PDF for the answer's report spec. */
 export async function novizPdf(user: NovizUser, spec: string): Promise<GatewayResponse> {
   const response = await fetch(`${GATEWAY_URL}/v1/chat/pdf?spec=${encodeURIComponent(spec)}`, {
-    headers: {
-      Authorization: `Bearer ${TENANT_KEY}`,
-      "X-Chat-User": user.chatUser,
-      "X-ERP-Authorization": `token ${user.erpApiKey}:${user.erpApiSecret}`,
-    },
+    headers: userHeaders(user),
     dispatcher: connection,
   });
   if (!response.ok) {
@@ -151,11 +183,7 @@ export async function novizPdf(user: NovizUser, spec: string): Promise<GatewayRe
 export async function novizDocumentPdf(user: NovizUser, doctype: string, name: string, format?: string): Promise<GatewayResponse> {
   const query = new URLSearchParams({ doctype, name, ...(format ? { format } : {}) });
   const response = await fetch(`${GATEWAY_URL}/v1/chat/document-pdf?${query}`, {
-    headers: {
-      Authorization: `Bearer ${TENANT_KEY}`,
-      "X-Chat-User": user.chatUser,
-      "X-ERP-Authorization": `token ${user.erpApiKey}:${user.erpApiSecret}`,
-    },
+    headers: userHeaders(user),
     dispatcher: connection,
   });
   if (!response.ok) {

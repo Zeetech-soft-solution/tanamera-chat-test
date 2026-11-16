@@ -37,14 +37,20 @@ The rest of this README describes the project with separate route folders (the t
 | `components/noviz/NovizAnswer.tsx` | Shows Noviz AI's tables, cards and charts under the message text; record IDs and next steps ask their follow-up | nothing |
 | `components/noviz/noviz-chat.css` | Noviz AI's result styles | never (same copy as every Noviz app) |
 | `components/noviz/noviz-answer.css` | Those results in your dark style | the colours, to your theme |
-| `lib/currentUser.ts` | **The one function you replace**: return the signed-in chat user and the ERPNext key you assigned to them | yes |
+| `lib/currentUser.ts` | **The one function you replace**: return the signed-in chat user and their ERPNext session (or the ERPNext key you assigned to them) | yes |
+| `app/login`, `app/api/auth/*`, `middleware.ts`, `components/AppNav.tsx` | This test site's own login (ERPNext user name and password, through the gateway), logout and menu | your chat has its own |
 
-You manage your users, sessions and ERPNext keys. `currentNovizUser()` returns them as
-variables; Noviz AI stores none of it:
+You manage your users and their sessions. `currentNovizUser()` returns who is chatting and
+their ERPNext access, one of the two; Noviz AI stores none of it:
 
 ```ts
-return { chatUser, erpApiKey, erpApiSecret };
+return { chatUser, erpSessionId };              // the user's ERPNext login session (novizLogin)
+return { chatUser, erpApiKey, erpApiSecret };   // or an ERPNext API key you assigned to them
 ```
+
+This test site logs the user in with their ERPNext user name and password
+(`novizLogin` -> gateway `POST /v1/auth/login` -> ERPNext `POST /api/method/login`) and keeps
+the session in an HttpOnly cookie until ERPNext ends it; Logout calls `novizLogout`.
 
 In your chat page, under an assistant message:
 
@@ -72,7 +78,7 @@ Server to server, every request:
 POST https://tanamera-gateway.noviz.in/v1/chat
 Authorization: Bearer tnt_<Noviz AI tenant key>
 X-Chat-User: <your chat user id>
-X-ERP-Authorization: token <api_key>:<api_secret>
+X-ERP-Session: <the user's ERPNext session id>          (or X-ERP-Authorization: token <api_key>:<api_secret>)
 Content-Type: application/json
 
 { "message": "How many open sales orders?", "conversationId": "c1", "company": "Tanamera Kopi Indonesia", "can_continue": true }

@@ -8,7 +8,31 @@
 html, body { height: 100%; margin: 0; }
 body { background: var(--bg); color: var(--text); font: 14px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
 button { font: inherit; color: inherit; cursor: pointer; }
-.chat { height: 100%; display: flex; flex-direction: column; }
+/* The site: the menu on top, the page below. */
+.app { height: 100%; display: flex; flex-direction: column; }
+.appnav { display: flex; align-items: center; gap: 18px; padding: 10px 20px; border-bottom: 1px solid var(--line); background: var(--panel-2); }
+.appnav .brand { font-weight: 600; margin-right: 8px; }
+.appnav a { color: var(--muted); text-decoration: none; }
+.appnav a.on, .appnav a:hover { color: var(--text); }
+.appnav .who { margin-left: auto; color: var(--muted); font-size: 13px; }
+.appnav button { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; }
+.muted { color: var(--muted); }
+.home { max-width: 760px; width: 100%; margin: 40px auto; padding: 0 16px; }
+.home h1 { margin: 0 0 6px; font-size: 22px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 24px; }
+.card { display: flex; flex-direction: column; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; color: var(--text); text-decoration: none; }
+.card:hover { border-color: var(--accent); }
+.card span { color: var(--muted); font-size: 13px; }
+.login { min-height: 100%; display: grid; place-items: center; padding: 16px; }
+.login form { width: 100%; max-width: 360px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+.login h1 { margin: 0; font-size: 20px; }
+.login p { margin: 0; }
+.login label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+.login input { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; color: var(--text); font: inherit; }
+.login input:focus { outline: 1px solid var(--accent); }
+.login button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 10px; font-weight: 600; }
+.login button:disabled { opacity: .6; }
+.chat { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .chat header { display: flex; align-items: center; gap: 12px; padding: 10px 20px; border-bottom: 1px solid var(--line); }
 .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; flex: none; }
 .badge { font-size: 11px; background: #333; color: var(--muted); padding: 2px 8px; border-radius: 6px; margin-left: 8px; }
