@@ -8,8 +8,11 @@ const SESSION_COOKIE = "noviz_erp_session";
 
 export function middleware(request: NextRequest) {
   if (!request.cookies.get(SESSION_COOKIE)?.value) {
-    // A relative Location: behind nginx, request.url is the app's own local address.
-    return new NextResponse(null, { status: 307, headers: { Location: "/login" } });
+    // Behind nginx, request.url is the app's own local address: the site's address is the Host header.
+    const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
+    const local = !host || /^(localhost|127\.0\.0\.1)(:|$)/.test(host);
+    const proto = request.headers.get("x-forwarded-proto") || (local ? "http" : "https");
+    return NextResponse.redirect(local ? new URL("/login", request.url) : `${proto}://${host}/login`);
   }
   return NextResponse.next();
 }
