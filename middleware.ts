@@ -8,7 +8,8 @@ const SESSION_COOKIE = "noviz_erp_session";
 
 export function middleware(request: NextRequest) {
   if (!request.cookies.get(SESSION_COOKIE)?.value) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    // A relative Location: behind nginx, request.url is the app's own local address.
+    return new NextResponse(null, { status: 307, headers: { Location: "/login" } });
   }
   return NextResponse.next();
 }
