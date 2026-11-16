@@ -5,7 +5,7 @@ four files. It does the same as the full test project around it, combined into o
 
 | File | What it is | You change |
 |---|---|---|
-| `route.ts` | Every Noviz AI route in one file, one commented section each, plus the gateway call. The tenant key and the user's ERPNext key stay on your server. | only `currentNovizUser()` at the bottom |
+| `route.ts` | Every Noviz AI route in one file, one commented section each, plus the gateway call. The tenant key and the user's ERPNext session stay on your server. | only `currentNovizUser()` at the bottom |
 | `Noviz.tsx` | Everything the browser needs: `readNovizEvents()`, `<NovizSteps>`, `<NovizAnswer>` | nothing |
 | `noviz.css` | Results and steps in your dark style | the colours, to your theme |
 | `noviz-chat.css` | Noviz AI's result styles | never (same copy as every Noviz app) |
@@ -44,19 +44,19 @@ NOVIZ_TENANT_KEY=tnt_...
 ## 3. Your user: the one function you replace
 
 At the bottom of `route.ts`, `currentNovizUser()` returns who is chatting. Return the
-signed-in chat user from your session and the ERPNext key you assigned to them, or `null`
-when no one is signed in:
+signed-in chat user and the ERPNext session of their login, or `null` when no one is signed
+in. As shipped it reads the HttpOnly cookie that the login route (`?route=login`) sets:
 
 ```ts
 async function currentNovizUser(): Promise<NovizUser | null> {
   const session = await yourSession();            // your login
   if (!session) return null;
-  const key = await yourErpKeyFor(session.userId); // your key store
-  return { chatUser: session.userId, erpApiKey: key.apiKey, erpApiSecret: key.apiSecret };
+  return { chatUser: session.userId, erpSessionId: session.erpSessionId }; // from ?route=login
 }
 ```
 
-You manage your users, sessions and ERPNext keys; Noviz AI stores none of it.
+The user logs in with their ERPNext user name and password (`?route=login`); ERPNext checks
+them and returns the session. Noviz AI stores no password and no session.
 
 ## 4. The routes
 
@@ -70,6 +70,9 @@ You manage your users, sessions and ERPNext keys; Noviz AI stores none of it.
 | `GET /api/agents/red/noviz?route=menu` | The + menu items (Approvals, Mail) |
 | `GET /api/agents/red/noviz?route=pdf&spec=` | "Download PDF" under an answer |
 | `GET /api/agents/red/noviz?route=document-pdf&doctype=&name=` | "Download PDF" of one document (a quotation, an invoice) |
+| `GET /api/agents/red/noviz?route=companies` | The company selection: `{ companies, selected }` |
+| `POST /api/agents/red/noviz?route=login` | Login: `{ usr, pwd }` (ERPNext user name and password) → the session, kept in an HttpOnly cookie |
+| `POST /api/agents/red/noviz?route=logout` | Logout: ends the ERPNext session |
 
 ## 5. Your chat page
 
@@ -153,4 +156,5 @@ stream responses already send `X-Accel-Buffering: no`.
 ## Errors
 
 Every route answers errors as `{ error, code }` with the gateway's status. `401` means
-`currentNovizUser()` returned `null`.
+`currentNovizUser()` returned `null` (no login yet), or with `code: "erp_session_expired"` that
+ERPNext ended the session: show your login page.

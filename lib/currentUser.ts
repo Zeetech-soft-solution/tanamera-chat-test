@@ -4,8 +4,8 @@
  * cookie, so the browser's scripts never see it; every Noviz AI request runs
  * as that user with their own ERPNext permissions.
  *
- * In Tanamera's chat, this is your existing session: return your user and
- * their ERPNext session (or the API key you assigned them) from it.
+ * In Tanamera's chat, this is your existing session: call novizLogin when the
+ * user logs in, keep the sessionId with your session, and return it here.
  */
 import "server-only";
 import { cookies } from "next/headers";

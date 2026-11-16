@@ -14,15 +14,20 @@
  *   GET  /api/agents/red/noviz?route=pdf             5. Report PDF: &spec=<the answer's report spec>
  *   GET  /api/agents/red/noviz?route=document-pdf    6. Document PDF: &doctype=&name=[&format=]
  *   GET  /api/agents/red/noviz?route=companies       7. Company selection: { companies, selected }
+ *   POST /api/agents/red/noviz?route=login           8. Login: { usr, pwd } (ERPNext user name and password) -> the user's ERPNext session
+ *   POST /api/agents/red/noviz?route=logout          9. Logout: ends the user's ERPNext session
  *
  * Company: a user works in one company at a time. Show route 7's companies as
  * a selection in your chat and send the selected one as `company` with routes
  * 1, 2 and 3; every answer is then for that company. When the user changes it,
  * start a new conversation.
  *
- * Server only: the Noviz AI tenant key and the user's ERPNext key never reach
- * the browser. You manage your users, sessions and ERPNext keys; Noviz AI
- * stores none of it.
+ * Login: the user logs in with their ERPNext user name and password (route 8);
+ * ERPNext checks them and returns the user's session, kept here in an HttpOnly
+ * cookie. Every other route runs as that user, with their ERPNext permissions.
+ *
+ * Server only: the Noviz AI tenant key and the user's ERPNext session never
+ * reach the browser. Noviz AI stores no password and no session.
  *
  * The one thing you change: currentNovizUser() at the bottom of this file.
  *
@@ -31,6 +36,7 @@
  *   NOVIZ_TENANT_KEY=tnt_...
  */
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { Agent, fetch } from "undici";
 
 export const runtime = "nodejs";
@@ -38,7 +44,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300; // a long answer continues on the server
 
 // ----------------------------------------------------------------------------
-// Routing: ?route= says which of the six routes was called (none = chat)
+// Routing: ?route= says which of the routes was called (none = chat)
 // ----------------------------------------------------------------------------
 
 const routeOf = (request: Request) => new URL(request.url).searchParams.get("route") || "";
@@ -48,6 +54,8 @@ export async function POST(request: Request) {
   if (route === "") return chat(request);
   if (route === "stream") return stream(request);
   if (route === "next-page") return nextPage(request);
+  if (route === "login") return login(request);
+  if (route === "logout") return logout();
   return NextResponse.json({ error: "Not found" }, { status: 404 });
 }
 
@@ -190,6 +198,58 @@ async function documentPdf(request: Request) {
   });
 }
 
+// ----------------------------------------------------------------------------
+// 8. Login: POST ?route=login { usr, pwd } -> { user, fullName }
+//    The gateway logs in to ERPNext (POST /api/method/login) and returns the
+//    user's session; it is kept in an HttpOnly cookie until ERPNext ends it.
+//    A wrong password answers 401 with ERPNext's own message.
+// ----------------------------------------------------------------------------
+
+async function login(request: Request) {
+  const { usr, pwd } = await request.json().catch(() => ({}));
+  if (typeof usr !== "string" || !usr.trim() || typeof pwd !== "string" || !pwd) {
+    return NextResponse.json({ error: "Enter your ERPNext user name and password." }, { status: 400 });
+  }
+  const response = await fetch(`${GATEWAY_URL}/v1/auth/login`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${TENANT_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ usr: usr.trim(), pwd }),
+    dispatcher: connection,
+  });
+  const session: any = await response.json().catch(() => ({}));
+  if (!response.ok) return NextResponse.json({ error: session.error?.message || "Login failed", code: session.error?.code }, { status: response.status });
+  const out = NextResponse.json({ user: session.user, fullName: session.fullName });
+  out.cookies.set({
+    name: SESSION_COOKIE,
+    value: Buffer.from(JSON.stringify({ sessionId: session.sessionId, user: session.user })).toString("base64url"),
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    ...(session.expiresAt ? { expires: new Date(session.expiresAt) } : {}),
+  });
+  return out;
+}
+
+// ----------------------------------------------------------------------------
+// 9. Logout: POST ?route=logout -> { ok: true }
+//    Ends the session in ERPNext and removes the cookie.
+// ----------------------------------------------------------------------------
+
+async function logout() {
+  const user = await currentNovizUser();
+  if (user) {
+    await fetch(`${GATEWAY_URL}/v1/auth/logout`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${TENANT_KEY}`, "X-ERP-Session": user.erpSessionId },
+      dispatcher: connection,
+    }).then((r) => r.arrayBuffer()).catch(() => undefined);
+  }
+  const out = NextResponse.json({ ok: true });
+  out.cookies.delete(SESSION_COOKIE);
+  return out;
+}
+
 // ============================================================================
 // The gateway call (you change nothing below, except currentNovizUser)
 // ============================================================================
@@ -197,11 +257,10 @@ async function documentPdf(request: Request) {
 const GATEWAY_URL = process.env.NOVIZ_GATEWAY_URL!;
 const TENANT_KEY = process.env.NOVIZ_TENANT_KEY!;
 
-/** Who is chatting, from your own session and your own key store. */
+/** Who is chatting: your chat's user and the session of their ERPNext login (route 8). */
 interface NovizUser {
   chatUser: string; // your chat's user id
-  erpApiKey: string; // the ERPNext API key and secret you assigned to this user
-  erpApiSecret: string;
+  erpSessionId: string; // the sessionId the login returned
 }
 
 class NovizError extends Error {
@@ -232,7 +291,7 @@ async function gatewayRaw(user: NovizUser, method: "GET" | "POST", path: string,
     headers: {
       Authorization: `Bearer ${TENANT_KEY}`,
       "X-Chat-User": user.chatUser,
-      "X-ERP-Authorization": `token ${user.erpApiKey}:${user.erpApiSecret}`,
+      "X-ERP-Session": user.erpSessionId,
       ...(body ? { "Content-Type": "application/json" } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -289,18 +348,20 @@ async function withUser(handler: (user: NovizUser) => Promise<Response>) {
 // ============================================================================
 // YOUR USER: the one function you replace
 // ============================================================================
-// Return the signed-in chat user and the ERPNext key you assigned to them,
-// from your existing session and your own key store. Return null when no one
-// is signed in.
-//
-// TEST SITE ONLY: here they come from .env
-//   TEST_CHAT_USER=noviz-test
-//   TEST_ERP_API_KEY=...
-//   TEST_ERP_API_SECRET=...
+// Return the signed-in chat user and the ERPNext session of their login.
+// Here: the cookie route 8 sets. With your own login, call route 8's gateway
+// login when the user logs in, keep sessionId in your session and return it.
+// Return null when no one is signed in.
+
+const SESSION_COOKIE = "noviz_erp_session";
 
 async function currentNovizUser(): Promise<NovizUser | null> {
-  const chatUser = process.env.TEST_CHAT_USER;
-  const erpApiKey = process.env.TEST_ERP_API_KEY;
-  const erpApiSecret = process.env.TEST_ERP_API_SECRET;
-  return chatUser && erpApiKey && erpApiSecret ? { chatUser, erpApiKey, erpApiSecret } : null;
+  const value = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (!value) return null;
+  try {
+    const s = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
+    return typeof s.sessionId === "string" && typeof s.user === "string" ? { chatUser: s.user, erpSessionId: s.sessionId } : null;
+  } catch {
+    return null;
+  }
 }

@@ -1,10 +1,10 @@
 /**
  * Calls Noviz AI's chat gateway from your Next.js server. Server only: the
- * Noviz AI tenant key and the user's ERPNext key never reach the browser.
+ * Noviz AI tenant key and the user's ERPNext session never reach the browser.
  *
  * You manage your users and their sessions; pass them in as a NovizUser. The
- * user's ERPNext access is their ERPNext login session (novizLogin) or an API
- * key you assigned them. Noviz AI stores none of it. The chat session is yours too:
+ * user's ERPNext access is their ERPNext login session (novizLogin). Noviz AI
+ * stores none of it. The chat session is yours too:
  * pass your conversationId and Noviz AI keeps the conversation going.
  *
  * Settings (.env):
@@ -32,25 +32,20 @@ function keepWarm() {
   }, 45_000).unref();
 }
 
-/** Who is chatting: your chat's user and their ERPNext access, one of the two. */
-export type NovizUser = {
+/** Who is chatting: your chat's user and the session of their ERPNext login. */
+export interface NovizUser {
   /** Your chat's user id. */
   chatUser: string;
-} & (
-  /** The session of the user's ERPNext login (novizLogin). */
-  | { erpSessionId: string }
-  /** Or the ERPNext API key and secret you assigned to this user. */
-  | { erpApiKey: string; erpApiSecret: string }
-);
+  /** The sessionId novizLogin returned for this user. */
+  erpSessionId: string;
+}
 
 /** The headers that say who is asking. */
 function userHeaders(user: NovizUser): Record<string, string> {
   return {
     Authorization: `Bearer ${TENANT_KEY}`,
     "X-Chat-User": user.chatUser,
-    ...("erpSessionId" in user
-      ? { "X-ERP-Session": user.erpSessionId }
-      : { "X-ERP-Authorization": `token ${user.erpApiKey}:${user.erpApiSecret}` }),
+    "X-ERP-Session": user.erpSessionId,
   };
 }
 

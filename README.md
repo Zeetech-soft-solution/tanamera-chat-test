@@ -25,7 +25,7 @@ The rest of this README describes the project with separate route folders (the t
 
 | File | What it is | You change |
 |---|---|---|
-| `lib/noviz/gateway.ts` | Calls the gateway from your server (the tenant key and the user's ERPNext key never reach the browser); continues long answers | nothing |
+| `lib/noviz/gateway.ts` | Calls the gateway from your server (the tenant key and the user's ERPNext session never reach the browser); continues long answers | nothing |
 | `app/api/agents/red/noviz/route.ts` | Noviz AI as one of your agents: `POST { message, conversationId }` → an assistant message in your message shape, plus `html` | nothing |
 | `app/api/agents/red/noviz/stream/route.ts` | The same agent answered as a stream: the steps while Noviz AI works, then the answer (see "Steps while it works") | nothing |
 | `components/noviz/NovizSteps.tsx` + `noviz-steps.css` | "Working… 3.1s" with the current step, then "Worked 9.4s · 5 steps ▾" above the reply | the colours, to your theme |
@@ -37,15 +37,14 @@ The rest of this README describes the project with separate route folders (the t
 | `components/noviz/NovizAnswer.tsx` | Shows Noviz AI's tables, cards and charts under the message text; record IDs and next steps ask their follow-up | nothing |
 | `components/noviz/noviz-chat.css` | Noviz AI's result styles | never (same copy as every Noviz app) |
 | `components/noviz/noviz-answer.css` | Those results in your dark style | the colours, to your theme |
-| `lib/currentUser.ts` | **The one function you replace**: return the signed-in chat user and their ERPNext session (or the ERPNext key you assigned to them) | yes |
+| `lib/currentUser.ts` | **The one function you replace**: return the signed-in chat user and the ERPNext session of their login | yes |
 | `app/login`, `app/api/auth/*`, `middleware.ts`, `components/AppNav.tsx` | This test site's own login (ERPNext user name and password, through the gateway), logout and menu | your chat has its own |
 
 You manage your users and their sessions. `currentNovizUser()` returns who is chatting and
 their ERPNext access, one of the two; Noviz AI stores none of it:
 
 ```ts
-return { chatUser, erpSessionId };              // the user's ERPNext login session (novizLogin)
-return { chatUser, erpApiKey, erpApiSecret };   // or an ERPNext API key you assigned to them
+return { chatUser, erpSessionId };   // the user's ERPNext login session (novizLogin)
 ```
 
 This test site logs the user in with their ERPNext user name and password
@@ -78,7 +77,7 @@ Server to server, every request:
 POST https://tanamera-gateway.noviz.in/v1/chat
 Authorization: Bearer tnt_<Noviz AI tenant key>
 X-Chat-User: <your chat user id>
-X-ERP-Session: <the user's ERPNext session id>          (or X-ERP-Authorization: token <api_key>:<api_secret>)
+X-ERP-Session: <the user's ERPNext session id>
 Content-Type: application/json
 
 { "message": "How many open sales orders?", "conversationId": "c1", "company": "Tanamera Kopi Indonesia", "can_continue": true }
